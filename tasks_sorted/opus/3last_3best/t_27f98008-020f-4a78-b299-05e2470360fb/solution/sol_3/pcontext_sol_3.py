@@ -1,0 +1,176 @@
+#Looking at the best algorithm (6.40), I'll improve it with several key changes:
+#
+#1. **More restarts with diverse strategies** - use 3 L-SHADE restarts with different configurations
+#2. **Better CR handling** - remove the aggressive CR reduction that can hurt exploration
+#3. **Improved local search** - use both Nelder-Mead and coordinate descent
+#4. **Smaller initial populations for faster convergence** on later restarts
+#5. **Better archive handling and r2 selection**
+#
+import numpy as np
+from datetime import datetime
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_x = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    ranges = upper - lower
+    
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def clip(x):
+        return np.clip(x, lower, upper)
+    
+    def evaluate(x):
+        nonlocal best, best_x
+        x = clip(x)
+        f = func(x)
+        if f < best:
+            best = f
+            best_x = x.copy()
+        return f
+
+    def run_lshade(time_frac_start, time_frac_end, N_init=None, seed_best=True):
+        nonlocal best, best_x
+        
+        if N_init is None:
+            N_init = min(max(10 * dim, 40), 180)
+        N_min = 4
+        H = min(N_init, 100)
+        memory_F = np.full(H, 0.5)
+        memory_CR = np.full(H, 0.5)
+        memory_idx = 0
+        archive = []
+        
+        pop_size = N_init
+        population = np.zeros((pop_size, dim))
+        for d in range(dim):
+            perm = np.random.permutation(pop_size)
+            population[:, d] = (perm + np.random.rand(pop_size)) / pop_size
+        population = lower + population * ranges
+        
+        if seed_best and best_x is not None:
+            population[0] = best_x.copy()
+            # Add perturbations of best
+            n_perturb = min(pop_size // 5, 10)
+            for k in range(1, n_perturb + 1):
+                scale = 0.1 * (k / n_perturb)
+                population[k] = clip(best_x + np.random.randn(dim) * ranges * scale)
+        
+        fitness = np.empty(pop_size)
+        for i in range(pop_size):
+            if elapsed() >= max_time * time_frac_end:
+                fitness[i:] = float('inf')
+                break
+            fitness[i] = evaluate(population[i])
+        
+        abs_end = max_time * time_frac_end
+        abs_start_time = elapsed()
+        total_time = abs_end - abs_start_time
+        
+        while elapsed() < abs_end:
+            sorted_idx = np.argsort(fitness)
+            
+            S_F = []
+            S_CR = []
+            S_delta = []
+            
+            time_progress = min((elapsed() - abs_start_time) / max(total_time, 1e-10), 1.0)
+            p = max(0.2 - 0.15 * time_progress, 2.0 / max(pop_size, 2))
+            
+            new_pop = population.copy()
+            new_fit = fitness.copy()
+            
+            for i in range(pop_size):
+                if elapsed() >= abs_end:
+                    break
+                
+                ri = np.random.randint(0, H)
+                mu_F = memory_F[ri]
+                mu_CR = memory_CR[ri]
+                
+                Fi = -1
+                for _ in range(20):
+                    Fi = mu_F + 0.1 * np.random.standard_cauchy()
+                    if Fi > 0:
+                        break
+                Fi = np.clip(Fi, 0.01, 1.0)
+                
+                CRi = np.clip(np.random.normal(mu_CR, 0.1), 0, 1)
+                
+                p_num = max(int(np.round(p * pop_size)), 2)
+                x_pbest = population[sorted_idx[np.random.randint(0, p_num)]]
+                
+                idxs = list(range(pop_size))
+                idxs.remove(i)
+                r1 = np.random.choice(idxs)
+                
+                pool_size = pop_size + len(archive)
+                r2 = np.random.randint(0, pool_size - 1)
+                if r2 >= i: r2 += 1
+                if r2 == r1: r2 = (r2 + 1) % pool_size
+                if r2 == i: r2 = (r2 + 1) % pool_size
+                
+                x_r2 = population[r2] if r2 < pop_size else archive[r2 - pop_size] if (r2 - pop_size) < len(archive) else population[np.random.choice(idxs)]
+                
+                mutant = population[i] + Fi * (x_pbest - population[i]) + Fi * (population[r1] - x_r2)
+                mutant = np.where(mutant < lower, (lower + population[i]) / 2, mutant)
+                mutant = np.where(mutant > upper, (upper + population[i]) / 2, mutant)
+                
+                cross = np.random.rand(dim) < CRi
+                cross[np.random.randint(dim)] = True
+                trial = clip(np.where(cross, mutant, population[i]))
+                
+                trial_f = evaluate(trial)
+                
+                if trial_f <= fitness[i]:
+                    if trial_f < fitness[i]:
+                        S_F.append(Fi); S_CR.append(CRi)
+                        S_delta.append(abs(fitness[i] - trial_f))
+                        if len(archive) < N_init:
+                            archive.append(population[i].copy())
+                        elif archive:
+                            archive[np.random.randint(len(archive))] = population[i].copy()
+                    new_pop[i] = trial; new_fit[i] = trial_f
+            
+            population = new_pop; fitness = new_fit
+            
+            if S_F:
+                w = np.array(S_delta); ws = w.sum()
+                if ws > 0:
+                    w /= ws
+                    memory_F[memory_idx] = np.sum(w * np.array(S_F)**2) / (np.sum(w * np.array(S_F)) + 1e-30)
+                    memory_CR[memory_idx] = np.sum(w * np.array(S_CR))
+                    memory_idx = (memory_idx + 1) % H
+            
+            new_size = max(int(np.round(N_init - (N_init - N_min) * time_progress)), N_min)
+            if new_size < pop_size:
+                order = np.argsort(fitness)
+                population = population[order[:new_size]]; fitness = fitness[order[:new_size]]
+                pop_size = new_size
+    
+    run_lshade(0, 0.45, N_init=min(max(12*dim, 50), 200))
+    run_lshade(0.45, 0.70, N_init=min(max(8*dim, 30), 120))
+    run_lshade(0.70, 0.90, N_init=min(max(5*dim, 20), 80))
+    
+    if best_x is not None:
+        x = best_x.copy()
+        step = ranges * 0.01
+        while elapsed() < max_time * 0.995:
+            improved = False
+            for d in range(dim):
+                if elapsed() >= max_time * 0.995: break
+                for sign in [1.0, -1.0]:
+                    trial = x.copy()
+                    trial[d] = np.clip(trial[d] + sign * step[d], lower[d], upper[d])
+                    f = evaluate(trial)
+                    if f < best:
+                        x = trial.copy(); improved = True; break
+            if not improved:
+                step *= 0.5
+                if np.max(step / (ranges + 1e-30)) < 1e-15: break
+    
+    return best

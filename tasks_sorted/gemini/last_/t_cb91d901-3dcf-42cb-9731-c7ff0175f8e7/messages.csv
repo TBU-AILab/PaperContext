@@ -1,0 +1,4798 @@
+time;tokens;role;text;path_solution_file;path_solution_metadata;id;metadata
+2026-02-12 23:19:50.034959+00:00;0;system;"Your task is to propose an algorithm to find a set of input parameter values that lead to minimum output value in a limited time. The template for the algorithm is given below. Deliver Python code that is fully operational and self-contained, requiring no external libraries or modifications post-delivery
+
+Glossary:
+func - function that returns output value (float) for an array of input parameter values (np.array).
+dim - (int) dimension of the input vector.
+bounds - (list) specified lower and upper bounds for the input vector values. A pair for each dimension.
+max_time - (int) maximum acceptable time in seconds to return a result.
+
+Template:
+
+def run(func, dim, bounds, max_time):
+
+    [Algorithm body]
+
+    # return fitness of the best found solution
+    return best
+
+Example implementation of a random search algorithm in the given template:
+
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+
+    # Algorithm body
+    while True:
+        passed_time = (datetime.now() - start)
+        if passed_time >= timedelta(seconds=max_time):
+            return best
+
+        params = [np.random.uniform(low, high) for low, high in bounds]
+        fitness = func(params)
+        if best is None or fitness <= best:
+            best = fitness
+        ";;;7df3c64a-3439-4002-a4f2-3dfbb88fd1ad;{}
+2026-02-12 23:19:50.036175+00:00;0;user;----;;;e4222bca-8a1a-43cc-b22f-99a913fcd52e;{}
+2026-02-12 23:20:36.680580+00:00;5910;model;"Here is a fully operational and self-contained Python algorithm implementing **Differential Evolution (DE)**.
+
+DE is a stochastic, population-based optimization algorithm that is highly effective for minimizing non-linear, non-differentiable continuous space functions. This implementation includes strict time management to ensure the result is returned within the `max_time` constraint.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a black-box function using Differential Evolution within a time limit.
+    """"""
+    # Initialize timing
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+
+    # Differential Evolution Parameters
+    # Population size: Scales with dimension but capped to ensure responsiveness
+    # Range [10, 50] is generally robust for limited-time scenarios
+    pop_size = max(10, min(50, int(dim * 5)))
+    
+    mutation_factor = 0.6  # Scaling factor (F)
+    crossover_rate = 0.8   # Crossover probability (CR)
+
+    # Pre-process bounds into numpy arrays for vectorized operations
+    bounds_arr = np.array(bounds)
+    min_bound = bounds_arr[:, 0]
+    max_bound = bounds_arr[:, 1]
+    diff_bound = max_bound - min_bound
+
+    # Initialize Population
+    # Structure: pop_size x dim
+    population = min_bound + np.random.rand(pop_size, dim) * diff_bound
+    fitness = np.full(pop_size, float('inf'))
+    best_fitness = float('inf')
+
+    # Initial Evaluation
+    # We evaluate sequentially to allow early exit if time is very tight
+    for i in range(pop_size):
+        if datetime.now() - start_time >= time_limit:
+            return best_fitness
+        
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_fitness:
+            best_fitness = val
+
+    # Main Optimization Loop
+    while True:
+        # Check overall time before starting a new generation
+        if datetime.now() - start_time >= time_limit:
+            return best_fitness
+
+        for i in range(pop_size):
+            # Strict time check before every function evaluation
+            if datetime.now() - start_time >= time_limit:
+                return best_fitness
+
+            # 1. Mutation (DE/rand/1 strategy)
+            # Select 3 distinct random indices different from current index i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a, b, c = np.random.choice(candidates, 3, replace=False)
+            
+            x_a = population[a]
+            x_b = population[b]
+            x_c = population[c]
+            
+            # Generate mutant vector
+            mutant = x_a + mutation_factor * (x_b - x_c)
+            
+            # Clip mutant vector to stay within defined bounds
+            mutant = np.clip(mutant, min_bound, max_bound)
+            
+            # 2. Crossover (Binomial)
+            rand_vals = np.random.rand(dim)
+            cross_mask = rand_vals < crossover_rate
+            
+            # Ensure at least one parameter is inherited from the mutant
+            j_rand = np.random.randint(dim)
+            cross_mask[j_rand] = True
+            
+            trial_vector = np.where(cross_mask, mutant, population[i])
+            
+            # 3. Selection
+            trial_fitness = func(trial_vector)
+            
+            if trial_fitness <= fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial_vector
+                
+                # Update global best found so far
+                if trial_fitness < best_fitness:
+                    best_fitness = trial_fitness
+
+    return best_fitness
+```";;;cf52783f-097f-47bc-9831-c5552968f9a1;{}
+2026-02-12 23:35:36.929323+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 26.929564339634993
+
+ The last generated algorithm code:
+#Here is a fully operational and self-contained Python algorithm implementing **Differential Evolution (DE)**.
+#
+#DE is a stochastic, population-based optimization algorithm that is highly effective for minimizing non-linear, non-differentiable continuous space functions. This implementation includes strict time management to ensure the result is returned within the `max_time` constraint.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a black-box function using Differential Evolution within a time limit.
+    """"""
+    # Initialize timing
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+
+    # Differential Evolution Parameters
+    # Population size: Scales with dimension but capped to ensure responsiveness
+    # Range [10, 50] is generally robust for limited-time scenarios
+    pop_size = max(10, min(50, int(dim * 5)))
+    
+    mutation_factor = 0.6  # Scaling factor (F)
+    crossover_rate = 0.8   # Crossover probability (CR)
+
+    # Pre-process bounds into numpy arrays for vectorized operations
+    bounds_arr = np.array(bounds)
+    min_bound = bounds_arr[:, 0]
+    max_bound = bounds_arr[:, 1]
+    diff_bound = max_bound - min_bound
+
+    # Initialize Population
+    # Structure: pop_size x dim
+    population = min_bound + np.random.rand(pop_size, dim) * diff_bound
+    fitness = np.full(pop_size, float('inf'))
+    best_fitness = float('inf')
+
+    # Initial Evaluation
+    # We evaluate sequentially to allow early exit if time is very tight
+    for i in range(pop_size):
+        if datetime.now() - start_time >= time_limit:
+            return best_fitness
+        
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_fitness:
+            best_fitness = val
+
+    # Main Optimization Loop
+    while True:
+        # Check overall time before starting a new generation
+        if datetime.now() - start_time >= time_limit:
+            return best_fitness
+
+        for i in range(pop_size):
+            # Strict time check before every function evaluation
+            if datetime.now() - start_time >= time_limit:
+                return best_fitness
+
+            # 1. Mutation (DE/rand/1 strategy)
+            # Select 3 distinct random indices different from current index i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a, b, c = np.random.choice(candidates, 3, replace=False)
+            
+            x_a = population[a]
+            x_b = population[b]
+            x_c = population[c]
+            
+            # Generate mutant vector
+            mutant = x_a + mutation_factor * (x_b - x_c)
+            
+            # Clip mutant vector to stay within defined bounds
+            mutant = np.clip(mutant, min_bound, max_bound)
+            
+            # 2. Crossover (Binomial)
+            rand_vals = np.random.rand(dim)
+            cross_mask = rand_vals < crossover_rate
+            
+            # Ensure at least one parameter is inherited from the mutant
+            j_rand = np.random.randint(dim)
+            cross_mask[j_rand] = True
+            
+            trial_vector = np.where(cross_mask, mutant, population[i])
+            
+            # 3. Selection
+            trial_fitness = func(trial_vector)
+            
+            if trial_fitness <= fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial_vector
+                
+                # Update global best found so far
+                if trial_fitness < best_fitness:
+                    best_fitness = trial_fitness
+
+    return best_fitness
+
+
+";;;ab93ff6b-cde9-46ba-8e82-6a1838b92854;{}
+2026-02-12 23:37:19.576771+00:00;13162;model;"Here is a fully operational and self-contained Python algorithm implementing **Restarting Self-Adaptive Differential Evolution (JADE variant)**.
+
+This algorithm improves upon standard Differential Evolution by:
+1.  **Self-Adaptation**: Automatically tuning mutation factor ($F$) and crossover rate ($CR$) during the run, allowing it to adapt to the function's landscape.
+2.  **Greedy Mutation Strategy**: Using `current-to-pbest` mutation to guide the search towards the best solutions found so far while maintaining diversity.
+3.  **Restarts**: Detecting convergence (stagnation) and restarting the population to escape local optima and explore new areas of the search space within the remaining time.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a black-box function using Restarting Self-Adaptive Differential Evolution (JADE).
+    
+    Key features:
+    - Adaptive F and CR parameters.
+    - DE/current-to-pbest/1 mutation strategy.
+    - Automatic restart mechanism upon convergence.
+    - Strict time management.
+    """"""
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # --- Configuration ---
+    # Population size: JADE is robust with ~100, but we scale it 
+    # slightly with dimension while capping to ensure iteration speed.
+    pop_size = int(max(20, min(100, 10 * dim)))
+    
+    # Adaptive Parameter Initial Means
+    mu_cr = 0.5
+    mu_f = 0.5
+    adapt_c = 0.1  # Learning rate for parameter updates
+    p_share = 0.05 # Top 5% for current-to-pbest mutation
+    
+    # Precompute bounds for vectorized operations
+    bounds_arr = np.array(bounds)
+    min_b = bounds_arr[:, 0]
+    max_b = bounds_arr[:, 1]
+    diff_b = max_b - min_b
+    
+    # Track the global best solution found
+    best_val = float('inf')
+    
+    # --- Main Loop (Restarts) ---
+    while True:
+        # Check overall time before starting a new run/restart
+        if datetime.now() - start_time >= limit:
+            return best_val
+            
+        # Initialize Population
+        pop = min_b + np.random.rand(pop_size, dim) * diff_b
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Initial Evaluation of the Population
+        for i in range(pop_size):
+            if datetime.now() - start_time >= limit:
+                return best_val
+            
+            val = func(pop[i])
+            fitness[i] = val
+            if val < best_val:
+                best_val = val
+        
+        # --- Evolution Loop ---
+        while True:
+            # Time check per generation
+            if datetime.now() - start_time >= limit:
+                return best_val
+            
+            # Convergence Check: If population fitness variance is negligible, restart
+            if np.std(fitness) < 1e-8:
+                break 
+            
+            # Sort population to facilitate p-best selection
+            # We sort arrays so pop[0] is the best
+            sort_idx = np.argsort(fitness)
+            pop = pop[sort_idx]
+            fitness = fitness[sort_idx]
+            
+            # --- Parameter Adaptation ---
+            # Generate F using Cauchy distribution: loc=mu_f, scale=0.1
+            # Generate CR using Normal distribution: mean=mu_cr, std=0.1
+            
+            # Note: standard_cauchy returns samples from Cauchy(0, 1)
+            F = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+            
+            # Handle F bounds: if > 1 clamp to 1, if <= 0 clamp to 0.1 (simplified regeneration)
+            F = np.where(F > 1.0, 1.0, F)
+            F = np.where(F <= 0.0, 0.1, F)
+            
+            CR = np.random.normal(mu_cr, 0.1, pop_size)
+            CR = np.clip(CR, 0.0, 1.0)
+            
+            # --- Mutation: DE/current-to-pbest/1 ---
+            # V = X + F*(X_pbest - X) + F*(X_r1 - X_r2)
+            
+            # Indices for mutation components
+            # pbest: randomly selected from the top p% individuals
+            p_top = max(1, int(pop_size * p_share))
+            idx_pbest = np.random.randint(0, p_top, pop_size)
+            
+            # r1, r2: randomly selected from population
+            idx_r1 = np.random.randint(0, pop_size, pop_size)
+            idx_r2 = np.random.randint(0, pop_size, pop_size)
+            
+            # Vectorized selection of parents
+            x = pop
+            xp = pop[idx_pbest]
+            xr1 = pop[idx_r1]
+            xr2 = pop[idx_r2]
+            
+            # Reshape F for broadcasting: (pop_size, 1)
+            F_v = F[:, np.newaxis]
+            
+            # Compute Mutant Vectors
+            mutant = x + F_v * (xp - x) + F_v * (xr1 - xr2)
+            
+            # --- Crossover: Binomial ---
+            mask_rand = np.random.rand(pop_size, dim)
+            CR_v = CR[:, np.newaxis]
+            cross_mask = mask_rand < CR_v
+            
+            # Ensure at least one dimension is inherited from mutant (standard DE requirement)
+            j_rand = np.random.randint(0, dim, pop_size)
+            j_mask = np.zeros((pop_size, dim), dtype=bool)
+            j_mask[np.arange(pop_size), j_rand] = True
+            cross_mask = np.logical_or(cross_mask, j_mask)
+            
+            # Create Trial Population
+            trial_pop = np.where(cross_mask, mutant, x)
+            
+            # Bound Handling: Clip to boundaries
+            trial_pop = np.clip(trial_pop, min_b, max_b)
+            
+            # --- Selection and Adaptation Stats Collection ---
+            succ_F = []
+            succ_CR = []
+            
+            # Evaluate Trial Vectors
+            for i in range(pop_size):
+                if datetime.now() - start_time >= limit:
+                    return best_val
+                
+                f_trial = func(trial_pop[i])
+                
+                # Greedy Selection
+                if f_trial < fitness[i]:
+                    fitness[i] = f_trial
+                    pop[i] = trial_pop[i]
+                    succ_F.append(F[i])
+                    succ_CR.append(CR[i])
+                    
+                    if f_trial < best_val:
+                        best_val = f_trial
+            
+            # --- Update Adaptive Means ---
+            # If there were successful mutations, update mu_f and mu_cr
+            if len(succ_F) > 0:
+                sf = np.array(succ_F)
+                scr = np.array(succ_CR)
+                
+                # Lehmer Mean for F (biases towards larger successful F)
+                mean_lehmer = np.sum(sf**2) / (np.sum(sf) + 1e-9)
+                mu_f = (1 - adapt_c) * mu_f + adapt_c * mean_lehmer
+                
+                # Arithmetic Mean for CR
+                mu_cr = (1 - adapt_c) * mu_cr + adapt_c * np.mean(scr)
+                
+    return best_val
+```";;;d90ecdf5-6fcb-40e3-8117-e8acb8341377;{}
+2026-02-12 23:52:19.821859+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 24.20659249360378
+
+ The last generated algorithm code:
+#Here is a fully operational and self-contained Python algorithm implementing **Restarting Self-Adaptive Differential Evolution (JADE variant)**.
+#
+#This algorithm improves upon standard Differential Evolution by:
+#1.  **Self-Adaptation**: Automatically tuning mutation factor ($F$) and crossover rate ($CR$) during the run, allowing it to adapt to the function's landscape.
+#2.  **Greedy Mutation Strategy**: Using `current-to-pbest` mutation to guide the search towards the best solutions found so far while maintaining diversity.
+#3.  **Restarts**: Detecting convergence (stagnation) and restarting the population to escape local optima and explore new areas of the search space within the remaining time.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a black-box function using Restarting Self-Adaptive Differential Evolution (JADE).
+    
+    Key features:
+    - Adaptive F and CR parameters.
+    - DE/current-to-pbest/1 mutation strategy.
+    - Automatic restart mechanism upon convergence.
+    - Strict time management.
+    """"""
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # --- Configuration ---
+    # Population size: JADE is robust with ~100, but we scale it 
+    # slightly with dimension while capping to ensure iteration speed.
+    pop_size = int(max(20, min(100, 10 * dim)))
+    
+    # Adaptive Parameter Initial Means
+    mu_cr = 0.5
+    mu_f = 0.5
+    adapt_c = 0.1  # Learning rate for parameter updates
+    p_share = 0.05 # Top 5% for current-to-pbest mutation
+    
+    # Precompute bounds for vectorized operations
+    bounds_arr = np.array(bounds)
+    min_b = bounds_arr[:, 0]
+    max_b = bounds_arr[:, 1]
+    diff_b = max_b - min_b
+    
+    # Track the global best solution found
+    best_val = float('inf')
+    
+    # --- Main Loop (Restarts) ---
+    while True:
+        # Check overall time before starting a new run/restart
+        if datetime.now() - start_time >= limit:
+            return best_val
+            
+        # Initialize Population
+        pop = min_b + np.random.rand(pop_size, dim) * diff_b
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Initial Evaluation of the Population
+        for i in range(pop_size):
+            if datetime.now() - start_time >= limit:
+                return best_val
+            
+            val = func(pop[i])
+            fitness[i] = val
+            if val < best_val:
+                best_val = val
+        
+        # --- Evolution Loop ---
+        while True:
+            # Time check per generation
+            if datetime.now() - start_time >= limit:
+                return best_val
+            
+            # Convergence Check: If population fitness variance is negligible, restart
+            if np.std(fitness) < 1e-8:
+                break 
+            
+            # Sort population to facilitate p-best selection
+            # We sort arrays so pop[0] is the best
+            sort_idx = np.argsort(fitness)
+            pop = pop[sort_idx]
+            fitness = fitness[sort_idx]
+            
+            # --- Parameter Adaptation ---
+            # Generate F using Cauchy distribution: loc=mu_f, scale=0.1
+            # Generate CR using Normal distribution: mean=mu_cr, std=0.1
+            
+            # Note: standard_cauchy returns samples from Cauchy(0, 1)
+            F = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+            
+            # Handle F bounds: if > 1 clamp to 1, if <= 0 clamp to 0.1 (simplified regeneration)
+            F = np.where(F > 1.0, 1.0, F)
+            F = np.where(F <= 0.0, 0.1, F)
+            
+            CR = np.random.normal(mu_cr, 0.1, pop_size)
+            CR = np.clip(CR, 0.0, 1.0)
+            
+            # --- Mutation: DE/current-to-pbest/1 ---
+            # V = X + F*(X_pbest - X) + F*(X_r1 - X_r2)
+            
+            # Indices for mutation components
+            # pbest: randomly selected from the top p% individuals
+            p_top = max(1, int(pop_size * p_share))
+            idx_pbest = np.random.randint(0, p_top, pop_size)
+            
+            # r1, r2: randomly selected from population
+            idx_r1 = np.random.randint(0, pop_size, pop_size)
+            idx_r2 = np.random.randint(0, pop_size, pop_size)
+            
+            # Vectorized selection of parents
+            x = pop
+            xp = pop[idx_pbest]
+            xr1 = pop[idx_r1]
+            xr2 = pop[idx_r2]
+            
+            # Reshape F for broadcasting: (pop_size, 1)
+            F_v = F[:, np.newaxis]
+            
+            # Compute Mutant Vectors
+            mutant = x + F_v * (xp - x) + F_v * (xr1 - xr2)
+            
+            # --- Crossover: Binomial ---
+            mask_rand = np.random.rand(pop_size, dim)
+            CR_v = CR[:, np.newaxis]
+            cross_mask = mask_rand < CR_v
+            
+            # Ensure at least one dimension is inherited from mutant (standard DE requirement)
+            j_rand = np.random.randint(0, dim, pop_size)
+            j_mask = np.zeros((pop_size, dim), dtype=bool)
+            j_mask[np.arange(pop_size), j_rand] = True
+            cross_mask = np.logical_or(cross_mask, j_mask)
+            
+            # Create Trial Population
+            trial_pop = np.where(cross_mask, mutant, x)
+            
+            # Bound Handling: Clip to boundaries
+            trial_pop = np.clip(trial_pop, min_b, max_b)
+            
+            # --- Selection and Adaptation Stats Collection ---
+            succ_F = []
+            succ_CR = []
+            
+            # Evaluate Trial Vectors
+            for i in range(pop_size):
+                if datetime.now() - start_time >= limit:
+                    return best_val
+                
+                f_trial = func(trial_pop[i])
+                
+                # Greedy Selection
+                if f_trial < fitness[i]:
+                    fitness[i] = f_trial
+                    pop[i] = trial_pop[i]
+                    succ_F.append(F[i])
+                    succ_CR.append(CR[i])
+                    
+                    if f_trial < best_val:
+                        best_val = f_trial
+            
+            # --- Update Adaptive Means ---
+            # If there were successful mutations, update mu_f and mu_cr
+            if len(succ_F) > 0:
+                sf = np.array(succ_F)
+                scr = np.array(succ_CR)
+                
+                # Lehmer Mean for F (biases towards larger successful F)
+                mean_lehmer = np.sum(sf**2) / (np.sum(sf) + 1e-9)
+                mu_f = (1 - adapt_c) * mu_f + adapt_c * mean_lehmer
+                
+                # Arithmetic Mean for CR
+                mu_cr = (1 - adapt_c) * mu_cr + adapt_c * np.mean(scr)
+                
+    return best_val
+
+
+";;;2d699efc-c4b9-498b-8401-b85921acd1bf;{}
+2026-02-12 23:54:39.169669+00:00;18063;model;"Here is the fully operational and self-contained Python algorithm implementing **L-SHADE (Linear Population Size Reduction Success-History Adaptive Differential Evolution)** with a restart mechanism.
+
+This algorithm improves upon standard DE and JADE by:
+1.  **Linear Population Size Reduction (LPSR)**: Starts with a larger population to explore the search space and linearly reduces it over time to exploit the best areas, adapting to the `max_time` budget.
+2.  **History-Based Adaptation**: Remembers successful control parameters ($F$ and $CR$) in a history memory to guide future parameter generation.
+3.  **External Archive**: Maintains diversity by storing superior solutions that were replaced, utilizing them in the mutation strategy.
+4.  **Time-Aware Restarts**: If the population converges (stagnates) before time runs out, it restarts the search to explore new basins of attraction.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a function using L-SHADE with Time-based Population Reduction and Restarts.
+    """"""
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # --- Configuration ---
+    # Population Sizing
+    # L-SHADE suggests N_init = 18 * dim. We clamp it for safety within time limits.
+    N_init = int(18 * dim)
+    N_init = max(30, min(N_init, 500)) 
+    N_min = 6  # Minimum population size
+    
+    # Memory and Archive
+    H = 6           # History memory size
+    arc_rate = 2.0  # Archive size relative to population
+    
+    # Bounds preprocessing
+    bounds_arr = np.array(bounds)
+    min_b = bounds_arr[:, 0]
+    max_b = bounds_arr[:, 1]
+    diff_b = max_b - min_b
+    
+    best_fitness = float('inf')
+
+    # Helper: Check if time limit is reached
+    def time_check():
+        return datetime.now() - start_time >= limit
+
+    # --- Main Loop (Restarts) ---
+    while not time_check():
+        
+        # --- Initialization per Restart ---
+        pop_size = N_init
+        
+        # Initialize Population (Uniform Random)
+        pop = min_b + np.random.rand(pop_size, dim) * diff_b
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Evaluate Initial Population
+        for i in range(pop_size):
+            if time_check(): return best_fitness
+            val = func(pop[i])
+            fitness[i] = val
+            if val < best_fitness:
+                best_fitness = val
+        
+        # Sort population by fitness
+        sort_idx = np.argsort(fitness)
+        pop = pop[sort_idx]
+        fitness = fitness[sort_idx]
+        
+        # Initialize Memory (M_cr, M_f) and Archive
+        M_cr = np.full(H, 0.5)
+        M_f = np.full(H, 0.5)
+        k_mem = 0
+        archive = [] # Stores solution vectors
+        
+        # --- L-SHADE Evolution Loop ---
+        while not time_check():
+            
+            # 1. Linear Population Size Reduction (LPSR) based on Time
+            elapsed = (datetime.now() - start_time).total_seconds()
+            progress = elapsed / max_time
+            if progress > 1.0: progress = 1.0
+            
+            # Calculate target population size
+            target_size = int(round((N_min - N_init) * progress + N_init))
+            target_size = max(N_min, target_size)
+            
+            # Reduce Population if needed
+            if pop_size > target_size:
+                # Pop is sorted at the start of loop/after selection. 
+                # Keep the best 'target_size' individuals.
+                pop = pop[:target_size]
+                fitness = fitness[:target_size]
+                pop_size = target_size
+                
+                # Resize Archive
+                max_arc_size = int(pop_size * arc_rate)
+                if len(archive) > max_arc_size:
+                    # Randomly remove elements
+                    keep_idxs = np.random.choice(len(archive), max_arc_size, replace=False)
+                    archive = [archive[i] for i in keep_idxs]
+            
+            # 2. Convergence Check (Trigger Restart)
+            # If population variance is negligible or we reached min size and stagnation
+            if np.max(fitness) - np.min(fitness) < 1e-8:
+                break # Break inner loop to restart
+                
+            # 3. Generate Parameters (F, CR)
+            # Pick random memory index for each individual
+            r_idx = np.random.randint(0, H, pop_size)
+            m_cr = M_cr[r_idx]
+            m_f = M_f[r_idx]
+            
+            # Generate CR: Normal(m_cr, 0.1), clipped [0, 1]
+            cr = np.random.normal(m_cr, 0.1)
+            cr = np.clip(cr, 0.0, 1.0)
+            
+            # Generate F: Cauchy(m_f, 0.1)
+            f = np.zeros(pop_size)
+            for i in range(pop_size):
+                while True:
+                    # Cauchy distribution
+                    val = m_f[i] + 0.1 * np.random.standard_cauchy()
+                    if val > 0: # Check lower bound
+                        if val > 1: val = 1.0 # Check upper bound
+                        f[i] = val
+                        break
+            
+            # 4. Mutation: current-to-pbest/1 with Archive
+            # Sort pop to find p-best
+            sort_idx = np.argsort(fitness)
+            pop = pop[sort_idx]
+            fitness = fitness[sort_idx]
+            
+            # Select p-best (top p% individuals)
+            p_val = 0.11
+            p_best_count = max(2, int(p_val * pop_size))
+            pbest_idxs = np.random.randint(0, p_best_count, pop_size)
+            xp = pop[pbest_idxs]
+            
+            # Select r1 (distinct from current i)
+            # We shift indices by random offset to ensure r1 != i
+            idxs = np.arange(pop_size)
+            r1_offsets = np.random.randint(1, pop_size, pop_size)
+            r1_idxs = (idxs + r1_offsets) % pop_size
+            xr1 = pop[r1_idxs]
+            
+            # Select r2 (distinct from i and r1, from Population U Archive)
+            n_arc = len(archive)
+            n_union = pop_size + n_arc
+            
+            if n_arc > 0:
+                union_arr = np.vstack((pop, np.array(archive)))
+            else:
+                union_arr = pop
+                
+            r2_idxs = np.random.randint(0, n_union, pop_size)
+            
+            # Fix r2 collisions (r2 != i and r2 != r1)
+            # Fast fix loop
+            for i in range(pop_size):
+                while r2_idxs[i] == i or r2_idxs[i] == r1_idxs[i]:
+                    r2_idxs[i] = np.random.randint(0, n_union)
+            
+            xr2 = union_arr[r2_idxs]
+            
+            # Compute Mutant Vectors
+            # V = X + F*(X_pbest - X) + F*(X_r1 - X_r2)
+            f_v = f[:, np.newaxis]
+            mutant = pop + f_v * (xp - pop) + f_v * (xr1 - xr2)
+            
+            # 5. Crossover (Binomial)
+            rand_mask = np.random.rand(pop_size, dim)
+            cross_mask = rand_mask < cr[:, np.newaxis]
+            
+            # Ensure at least one dimension is taken from mutant
+            j_rand = np.random.randint(0, dim, pop_size)
+            j_mask = np.zeros((pop_size, dim), dtype=bool)
+            j_mask[np.arange(pop_size), j_rand] = True
+            cross_mask = np.logical_or(cross_mask, j_mask)
+            
+            trial_pop = np.where(cross_mask, mutant, pop)
+            trial_pop = np.clip(trial_pop, min_b, max_b)
+            
+            # 6. Selection and Adaptation
+            new_pop = pop.copy()
+            new_fitness = fitness.copy()
+            
+            succ_mask = np.zeros(pop_size, dtype=bool)
+            diff_fit = np.zeros(pop_size)
+            
+            for i in range(pop_size):
+                if time_check(): return best_fitness
+                
+                f_trial = func(trial_pop[i])
+                
+                if f_trial <= fitness[i]:
+                    # Solution improved or same
+                    if f_trial < fitness[i]:
+                        # Save old solution to archive
+                        archive.append(pop[i].copy())
+                        succ_mask[i] = True
+                        diff_fit[i] = fitness[i] - f_trial
+                        
+                    new_pop[i] = trial_pop[i]
+                    new_fitness[i] = f_trial
+                    
+                    if f_trial < best_fitness:
+                        best_fitness = f_trial
+            
+            pop = new_pop
+            fitness = new_fitness
+            
+            # Manage Archive Size (Immediate cleanup)
+            max_arc_size = int(pop_size * arc_rate)
+            while len(archive) > max_arc_size:
+                # Remove random solution
+                archive.pop(np.random.randint(0, len(archive)))
+            
+            # 7. Update History Memory
+            if np.any(succ_mask):
+                s_f = f[succ_mask]
+                s_cr = cr[succ_mask]
+                df = diff_fit[succ_mask]
+                
+                # Weighted Lehmer Mean calculation
+                weights = df / np.sum(df)
+                
+                # Mean F (Lehmer)
+                mean_f = np.sum(weights * (s_f ** 2)) / (np.sum(weights * s_f) + 1e-9)
+                
+                # Mean CR (Weighted Arithmetic)
+                mean_cr = np.sum(weights * s_cr)
+                
+                # Update memory at pointer k
+                M_f[k_mem] = mean_f
+                M_cr[k_mem] = mean_cr
+                
+                k_mem = (k_mem + 1) % H
+
+    return best_fitness
+```";;;8c821c36-b2f1-451a-9da3-a4c1e095d7c1;{}
+2026-02-13 00:09:39.405802+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 37.08142991735051
+
+ The last generated algorithm code:
+#Here is the fully operational and self-contained Python algorithm implementing **L-SHADE (Linear Population Size Reduction Success-History Adaptive Differential Evolution)** with a restart mechanism.
+#
+#This algorithm improves upon standard DE and JADE by:
+#1.  **Linear Population Size Reduction (LPSR)**: Starts with a larger population to explore the search space and linearly reduces it over time to exploit the best areas, adapting to the `max_time` budget.
+#2.  **History-Based Adaptation**: Remembers successful control parameters ($F$ and $CR$) in a history memory to guide future parameter generation.
+#3.  **External Archive**: Maintains diversity by storing superior solutions that were replaced, utilizing them in the mutation strategy.
+#4.  **Time-Aware Restarts**: If the population converges (stagnates) before time runs out, it restarts the search to explore new basins of attraction.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a function using L-SHADE with Time-based Population Reduction and Restarts.
+    """"""
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # --- Configuration ---
+    # Population Sizing
+    # L-SHADE suggests N_init = 18 * dim. We clamp it for safety within time limits.
+    N_init = int(18 * dim)
+    N_init = max(30, min(N_init, 500)) 
+    N_min = 6  # Minimum population size
+    
+    # Memory and Archive
+    H = 6           # History memory size
+    arc_rate = 2.0  # Archive size relative to population
+    
+    # Bounds preprocessing
+    bounds_arr = np.array(bounds)
+    min_b = bounds_arr[:, 0]
+    max_b = bounds_arr[:, 1]
+    diff_b = max_b - min_b
+    
+    best_fitness = float('inf')
+
+    # Helper: Check if time limit is reached
+    def time_check():
+        return datetime.now() - start_time >= limit
+
+    # --- Main Loop (Restarts) ---
+    while not time_check():
+        
+        # --- Initialization per Restart ---
+        pop_size = N_init
+        
+        # Initialize Population (Uniform Random)
+        pop = min_b + np.random.rand(pop_size, dim) * diff_b
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Evaluate Initial Population
+        for i in range(pop_size):
+            if time_check(): return best_fitness
+            val = func(pop[i])
+            fitness[i] = val
+            if val < best_fitness:
+                best_fitness = val
+        
+        # Sort population by fitness
+        sort_idx = np.argsort(fitness)
+        pop = pop[sort_idx]
+        fitness = fitness[sort_idx]
+        
+        # Initialize Memory (M_cr, M_f) and Archive
+        M_cr = np.full(H, 0.5)
+        M_f = np.full(H, 0.5)
+        k_mem = 0
+        archive = [] # Stores solution vectors
+        
+        # --- L-SHADE Evolution Loop ---
+        while not time_check():
+            
+            # 1. Linear Population Size Reduction (LPSR) based on Time
+            elapsed = (datetime.now() - start_time).total_seconds()
+            progress = elapsed / max_time
+            if progress > 1.0: progress = 1.0
+            
+            # Calculate target population size
+            target_size = int(round((N_min - N_init) * progress + N_init))
+            target_size = max(N_min, target_size)
+            
+            # Reduce Population if needed
+            if pop_size > target_size:
+                # Pop is sorted at the start of loop/after selection. 
+                # Keep the best 'target_size' individuals.
+                pop = pop[:target_size]
+                fitness = fitness[:target_size]
+                pop_size = target_size
+                
+                # Resize Archive
+                max_arc_size = int(pop_size * arc_rate)
+                if len(archive) > max_arc_size:
+                    # Randomly remove elements
+                    keep_idxs = np.random.choice(len(archive), max_arc_size, replace=False)
+                    archive = [archive[i] for i in keep_idxs]
+            
+            # 2. Convergence Check (Trigger Restart)
+            # If population variance is negligible or we reached min size and stagnation
+            if np.max(fitness) - np.min(fitness) < 1e-8:
+                break # Break inner loop to restart
+                
+            # 3. Generate Parameters (F, CR)
+            # Pick random memory index for each individual
+            r_idx = np.random.randint(0, H, pop_size)
+            m_cr = M_cr[r_idx]
+            m_f = M_f[r_idx]
+            
+            # Generate CR: Normal(m_cr, 0.1), clipped [0, 1]
+            cr = np.random.normal(m_cr, 0.1)
+            cr = np.clip(cr, 0.0, 1.0)
+            
+            # Generate F: Cauchy(m_f, 0.1)
+            f = np.zeros(pop_size)
+            for i in range(pop_size):
+                while True:
+                    # Cauchy distribution
+                    val = m_f[i] + 0.1 * np.random.standard_cauchy()
+                    if val > 0: # Check lower bound
+                        if val > 1: val = 1.0 # Check upper bound
+                        f[i] = val
+                        break
+            
+            # 4. Mutation: current-to-pbest/1 with Archive
+            # Sort pop to find p-best
+            sort_idx = np.argsort(fitness)
+            pop = pop[sort_idx]
+            fitness = fitness[sort_idx]
+            
+            # Select p-best (top p% individuals)
+            p_val = 0.11
+            p_best_count = max(2, int(p_val * pop_size))
+            pbest_idxs = np.random.randint(0, p_best_count, pop_size)
+            xp = pop[pbest_idxs]
+            
+            # Select r1 (distinct from current i)
+            # We shift indices by random offset to ensure r1 != i
+            idxs = np.arange(pop_size)
+            r1_offsets = np.random.randint(1, pop_size, pop_size)
+            r1_idxs = (idxs + r1_offsets) % pop_size
+            xr1 = pop[r1_idxs]
+            
+            # Select r2 (distinct from i and r1, from Population U Archive)
+            n_arc = len(archive)
+            n_union = pop_size + n_arc
+            
+            if n_arc > 0:
+                union_arr = np.vstack((pop, np.array(archive)))
+            else:
+                union_arr = pop
+                
+            r2_idxs = np.random.randint(0, n_union, pop_size)
+            
+            # Fix r2 collisions (r2 != i and r2 != r1)
+            # Fast fix loop
+            for i in range(pop_size):
+                while r2_idxs[i] == i or r2_idxs[i] == r1_idxs[i]:
+                    r2_idxs[i] = np.random.randint(0, n_union)
+            
+            xr2 = union_arr[r2_idxs]
+            
+            # Compute Mutant Vectors
+            # V = X + F*(X_pbest - X) + F*(X_r1 - X_r2)
+            f_v = f[:, np.newaxis]
+            mutant = pop + f_v * (xp - pop) + f_v * (xr1 - xr2)
+            
+            # 5. Crossover (Binomial)
+            rand_mask = np.random.rand(pop_size, dim)
+            cross_mask = rand_mask < cr[:, np.newaxis]
+            
+            # Ensure at least one dimension is taken from mutant
+            j_rand = np.random.randint(0, dim, pop_size)
+            j_mask = np.zeros((pop_size, dim), dtype=bool)
+            j_mask[np.arange(pop_size), j_rand] = True
+            cross_mask = np.logical_or(cross_mask, j_mask)
+            
+            trial_pop = np.where(cross_mask, mutant, pop)
+            trial_pop = np.clip(trial_pop, min_b, max_b)
+            
+            # 6. Selection and Adaptation
+            new_pop = pop.copy()
+            new_fitness = fitness.copy()
+            
+            succ_mask = np.zeros(pop_size, dtype=bool)
+            diff_fit = np.zeros(pop_size)
+            
+            for i in range(pop_size):
+                if time_check(): return best_fitness
+                
+                f_trial = func(trial_pop[i])
+                
+                if f_trial <= fitness[i]:
+                    # Solution improved or same
+                    if f_trial < fitness[i]:
+                        # Save old solution to archive
+                        archive.append(pop[i].copy())
+                        succ_mask[i] = True
+                        diff_fit[i] = fitness[i] - f_trial
+                        
+                    new_pop[i] = trial_pop[i]
+                    new_fitness[i] = f_trial
+                    
+                    if f_trial < best_fitness:
+                        best_fitness = f_trial
+            
+            pop = new_pop
+            fitness = new_fitness
+            
+            # Manage Archive Size (Immediate cleanup)
+            max_arc_size = int(pop_size * arc_rate)
+            while len(archive) > max_arc_size:
+                # Remove random solution
+                archive.pop(np.random.randint(0, len(archive)))
+            
+            # 7. Update History Memory
+            if np.any(succ_mask):
+                s_f = f[succ_mask]
+                s_cr = cr[succ_mask]
+                df = diff_fit[succ_mask]
+                
+                # Weighted Lehmer Mean calculation
+                weights = df / np.sum(df)
+                
+                # Mean F (Lehmer)
+                mean_f = np.sum(weights * (s_f ** 2)) / (np.sum(weights * s_f) + 1e-9)
+                
+                # Mean CR (Weighted Arithmetic)
+                mean_cr = np.sum(weights * s_cr)
+                
+                # Update memory at pointer k
+                M_f[k_mem] = mean_f
+                M_cr[k_mem] = mean_cr
+                
+                k_mem = (k_mem + 1) % H
+
+    return best_fitness
+
+
+";;;96253020-1fa6-4269-b193-6a84dcf32655;{}
+2026-02-13 00:10:50.744091+00:00;10977;model;"Here is a fully operational, self-contained Python algorithm. It implements the **jSO (Self-adaptive Differential Evolution with Weighted Linear Population Size Reduction)** algorithm.
+
+This algorithm improves upon the previous L-SHADE implementation by:
+1.  **Dynamic `p`-best Selection**: Linearly reducing the greedy parameter `p` (from exploration to exploitation) over time.
+2.  **Mid-point Boundary Correction**: Instead of simple clipping (which causes ""sticking"" to bounds), it uses a bounce-back approach to preserve population distribution.
+3.  **Soft Restarts**: Instead of wiping the population when stagnated, it retains the global best and generates a ""cloud"" of mutants around it, maintaining the discovered basin of attraction while re-injecting diversity.
+4.  **Optimized Vectorization**: Minimizes Python loop overhead for parameter generation.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements jSO (variant of L-SHADE) with Soft Restarts.
+    """"""
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # --- Bounds Preprocessing ---
+    bounds_arr = np.array(bounds)
+    min_b = bounds_arr[:, 0]
+    max_b = bounds_arr[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Algorithm Parameters ---
+    # jSO / L-SHADE sizing
+    # Initial population size: typically 25 * log(dim) * sqrt(dim), but we clamp for safety
+    N_init = int(25 * np.sqrt(dim))
+    N_init = max(30, min(N_init, 300)) 
+    N_min = 4 # Minimum population size allowed
+    
+    # Archive parameters
+    arc_rate = 2.6
+    
+    # Memory parameters
+    H = 6 # History size
+    M_cr = np.full(H, 0.8) # Start with high CR (approx 0.8)
+    M_f = np.full(H, 0.5)  # Start with mid F
+    k_mem = 0
+    
+    # Best solution holder
+    best_sol = None
+    best_fitness = float('inf')
+    
+    # Helper to check time
+    def get_progress():
+        elapsed = (datetime.now() - start_time).total_seconds()
+        return elapsed / max_time
+
+    def check_time():
+        return (datetime.now() - start_time) >= limit
+
+    # --- Initialization ---
+    pop_size = N_init
+    # Latin Hypercube Sampling-like initialization (Stratified) for better coverage
+    pop = np.zeros((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(min_b[d], max_b[d], pop_size + 1)
+        pop[:, d] = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(pop[:, d])
+        
+    fitness = np.zeros(pop_size)
+    
+    # Initial Evaluation
+    for i in range(pop_size):
+        if check_time(): return best_fitness
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            best_sol = pop[i].copy()
+            
+    # Sort population
+    sort_idx = np.argsort(fitness)
+    pop = pop[sort_idx]
+    fitness = fitness[sort_idx]
+    
+    archive = [] 
+    
+    # --- Main Loop ---
+    while not check_time():
+        
+        # 1. Calculate Progress (0.0 to 1.0)
+        progress = get_progress()
+        if progress > 1.0: progress = 1.0
+        
+        # 2. Linear Population Size Reduction (LPSR)
+        # Calculate new target size
+        N_target = int(round(N_init + (N_min - N_init) * progress))
+        N_target = max(N_min, N_target)
+        
+        if pop_size > N_target:
+            # Reduction: Keep best N_target
+            # (Population is always sorted at start of loop or after selection)
+            reduction_count = pop_size - N_target
+            # Add removed individuals to archive if space permits (optional, but good for diversity)
+            for i in range(N_target, pop_size):
+                if len(archive) < int(N_target * arc_rate):
+                    archive.append(pop[i].copy())
+            
+            pop = pop[:N_target]
+            fitness = fitness[:N_target]
+            pop_size = N_target
+            
+            # Reduce archive size
+            max_arc_size = int(pop_size * arc_rate)
+            if len(archive) > max_arc_size:
+                # Remove random elements to shrink
+                idxs = np.random.choice(len(archive), max_arc_size, replace=False)
+                archive = [archive[i] for i in idxs]
+
+        # 3. Dynamic p-value for current-to-pbest
+        # p ranges from 0.25 (exploration) down to 0.05 (exploitation)
+        p_max = 0.25
+        p_min = 0.05
+        p_curr = p_max - (p_max - p_min) * progress
+        
+        # 4. Generate Parameters (F and CR)
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr = M_cr[r_idx]
+        m_f = M_f[r_idx]
+        
+        # CR generation: Normal(m_cr, 0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0.0, 1.0)
+        # Fix: CR should often be 0.0 or 1.0 in DE? No, L-SHADE typically uses continuous.
+        # But if M_cr is essentially -1 (terminal), set to 0. 
+        # (L-SHADE sets -1 to mean 0, but we use actual means).
+        
+        # F generation: Cauchy(m_f, 0.1)
+        # Vectorized rejection sampling for Cauchy
+        f = np.zeros(pop_size)
+        
+        # Base generation
+        f_raw = m_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Check constraints
+        # Rule: if F > 1 -> F = 1. If F <= 0 -> Regenerate.
+        # Fast correction loop
+        bad_indices = np.where(f_raw <= 0)[0]
+        while len(bad_indices) > 0:
+            # Regenerate only bad ones
+            new_vals = m_f[bad_indices] + 0.1 * np.random.standard_cauchy(len(bad_indices))
+            f_raw[bad_indices] = new_vals
+            bad_indices = np.where(f_raw <= 0)[0]
+            
+        f = np.clip(f_raw, 0.0, 1.0) # Clip upper at 1.0
+        
+        # 5. Mutation: current-to-pbest/1
+        # Prepare p-best
+        p_num = max(1, int(p_curr * pop_size))
+        pbest_idxs = np.random.randint(0, p_num, pop_size) # Indices in sorted pop
+        x_pbest = pop[pbest_idxs]
+        
+        # Prepare r1 (distinct from i)
+        # Shift random indices
+        idxs = np.arange(pop_size)
+        r1_idxs = np.random.randint(0, pop_size - 1, pop_size)
+        # If r1_idx >= i, add 1 to skip i
+        r1_idxs = np.where(r1_idxs >= idxs, r1_idxs + 1, r1_idxs)
+        x_r1 = pop[r1_idxs]
+        
+        # Prepare r2 (distinct from i and r1, from Union(Pop, Archive))
+        n_arc = len(archive)
+        union_pop = pop
+        if n_arc > 0:
+            union_pop = np.vstack((pop, np.array(archive)))
+        
+        n_union = len(union_pop)
+        
+        r2_idxs = np.random.randint(0, n_union - 2, pop_size)
+        # Logic to ensure distinctness is complex to fully vectorize perfectly 
+        # without small bias, but approx is okay for DE. 
+        # Let's do a simple check-and-fix loop which is fast enough for N<200.
+        x_r2 = np.zeros((pop_size, dim))
+        for i in range(pop_size):
+            r1 = r1_idxs[i]
+            r2 = np.random.randint(0, n_union)
+            while r2 == i or r2 == r1:
+                r2 = np.random.randint(0, n_union)
+            x_r2[i] = union_pop[r2]
+
+        # Calculate Mutation Vectors (jSO weighting applies specific logic, 
+        # but L-SHADE standard form is robust enough here)
+        # V = X_i + F * (X_pbest - X_i) + F * (X_r1 - X_r2)
+        f_v = f[:, np.newaxis]
+        # Note: L-SHADE uses F for both terms. jSO uses F_w for second term sometimes.
+        # Sticking to standard L-SHADE formula for stability.
+        mutant = pop + f_v * (x_pbest - pop) + f_v * (x_r1 - x_r2)
+        
+        # 6. Crossover (Binomial)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, np.newaxis]
+        
+        # Ensure at least one parameter comes from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        j_mask = np.zeros((pop_size, dim), dtype=bool)
+        j_mask[np.arange(pop_size), j_rand] = True
+        mask = np.logical_or(mask, j_mask)
+        
+        trial = np.where(mask, mutant, pop)
+        
+        # 7. Boundary Constraint Handling (Mid-point / Bounce back)
+        # Instead of clipping, we set value to (bound + old_val) / 2
+        # This preserves the search direction but restricts range.
+        lower_viol = trial < min_b
+        upper_viol = trial > max_b
+        
+        # If violated, set to mean of boundary and parent
+        # This helps avoid getting stuck on the edge
+        trial[lower_viol] = (min_b[np.where(lower_viol)[1]] + pop[lower_viol]) / 2.0
+        trial[upper_viol] = (max_b[np.where(upper_viol)[1]] + pop[upper_viol]) / 2.0
+        
+        # 8. Selection
+        new_pop = pop.copy()
+        new_fitness = fitness.copy()
+        
+        succ_mask = np.zeros(pop_size, dtype=bool)
+        diff_f = np.zeros(pop_size)
+        
+        # Evaluation Loop
+        for i in range(pop_size):
+            if check_time(): return best_fitness
+            
+            t_fit = func(trial[i])
+            
+            if t_fit <= fitness[i]:
+                # Improvement or equal
+                if t_fit < fitness[i]:
+                    archive.append(pop[i].copy())
+                    diff_f[i] = fitness[i] - t_fit
+                    succ_mask[i] = True
+                
+                new_pop[i] = trial[i]
+                new_fitness[i] = t_fit
+                
+                if t_fit < best_fitness:
+                    best_fitness = t_fit
+                    best_sol = trial[i].copy()
+                    
+        pop = new_pop
+        fitness = new_fitness
+        
+        # Sort for next p-best selection
+        sort_p = np.argsort(fitness)
+        pop = pop[sort_p]
+        fitness = fitness[sort_p]
+        
+        # 9. Update Memory (Weighted Lehmer Mean)
+        if np.any(succ_mask):
+            s_f = f[succ_mask]
+            s_cr = cr[succ_mask]
+            df = diff_f[succ_mask]
+            
+            # Normalize weights
+            denom = np.sum(df)
+            if denom == 0:
+                weights = np.ones(len(df)) / len(df)
+            else:
+                weights = df / denom
+                
+            # Update M_cr (Weighted Mean)
+            # Check for terminal value -1 in L-SHADE usually ignored here, we assume bounds [0,1]
+            m_cr_new = np.sum(weights * s_cr)
+            # Clamp for safety
+            M_cr[k_mem] = np.clip(m_cr_new, 0, 1)
+            
+            # Update M_f (Weighted Lehmer Mean)
+            f_numer = np.sum(weights * (s_f**2))
+            f_denom = np.sum(weights * s_f)
+            if f_denom > 0:
+                M_f[k_mem] = np.clip(f_numer / f_denom, 0, 1)
+            else:
+                M_f[k_mem] = 0.5
+                
+            k_mem = (k_mem + 1) % H
+
+        # 10. Soft Restart Check
+        # If population diversity is extremely low, or stagnant, we restart
+        # But we keep the best solution (Soft Restart)
+        # Convergence criteria: std dev of fitness or position
+        if pop_size > N_min:
+            # Check range of fitness
+            fit_range = np.abs(fitness[-1] - fitness[0])
+            if fit_range < 1e-8:
+                # --- SOFT RESTART ---
+                # 1. Keep Best (index 0 after sort)
+                # 2. Perturb best with different scales
+                
+                # Keep top 10%
+                n_keep = max(1, int(0.1 * pop_size))
+                
+                # Remaining slots
+                n_reset = pop_size - n_keep
+                
+                # Generate new individuals
+                # Half: Small Gaussian cloud around best (Exploitation of current basin)
+                # Half: Global random (Exploration)
+                n_cloud = n_reset // 2
+                n_rand = n_reset - n_cloud
+                
+                # Cloud: std dev based on current best history or arbitrary small factor
+                # Use mean parameter bounds width / 20
+                sigma = (diff_b) * 0.05
+                cloud = best_sol + np.random.normal(0, 1, (n_cloud, dim)) * sigma
+                
+                # Random
+                rand_part = min_b + np.random.rand(n_rand, dim) * diff_b
+                
+                # Combine
+                pop[n_keep : n_keep+n_cloud] = cloud
+                pop[n_keep+n_cloud :] = rand_part
+                
+                # Clamp
+                pop = np.clip(pop, min_b, max_b)
+                
+                # Evaluate new batch
+                for i in range(n_keep, pop_size):
+                    if check_time(): return best_fitness
+                    val = func(pop[i])
+                    fitness[i] = val
+                    if val < best_fitness:
+                        best_fitness = val
+                        best_sol = pop[i].copy()
+                
+                # Re-sort
+                idx_r = np.argsort(fitness)
+                pop = pop[idx_r]
+                fitness = fitness[idx_r]
+                
+                # Reset Memory partially? 
+                # No, keeping memory often helps if the function has consistent landscape properties.
+                # But we can disperse the history slightly to encourage diversity.
+                M_cr = np.clip(np.random.normal(M_cr, 0.1), 0, 1)
+                M_f = np.clip(np.random.normal(M_f, 0.1), 0, 1)
+
+    return best_fitness
+```";;;82f51e9d-2d71-49fd-bf58-a8f0ae890451;{}
+2026-02-13 00:25:50.983020+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 1.505403785688955
+
+ The last generated algorithm code:
+#Here is a fully operational, self-contained Python algorithm. It implements the **jSO (Self-adaptive Differential Evolution with Weighted Linear Population Size Reduction)** algorithm.
+#
+#This algorithm improves upon the previous L-SHADE implementation by:
+#1.  **Dynamic `p`-best Selection**: Linearly reducing the greedy parameter `p` (from exploration to exploitation) over time.
+#2.  **Mid-point Boundary Correction**: Instead of simple clipping (which causes ""sticking"" to bounds), it uses a bounce-back approach to preserve population distribution.
+#3.  **Soft Restarts**: Instead of wiping the population when stagnated, it retains the global best and generates a ""cloud"" of mutants around it, maintaining the discovered basin of attraction while re-injecting diversity.
+#4.  **Optimized Vectorization**: Minimizes Python loop overhead for parameter generation.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements jSO (variant of L-SHADE) with Soft Restarts.
+    """"""
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # --- Bounds Preprocessing ---
+    bounds_arr = np.array(bounds)
+    min_b = bounds_arr[:, 0]
+    max_b = bounds_arr[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Algorithm Parameters ---
+    # jSO / L-SHADE sizing
+    # Initial population size: typically 25 * log(dim) * sqrt(dim), but we clamp for safety
+    N_init = int(25 * np.sqrt(dim))
+    N_init = max(30, min(N_init, 300)) 
+    N_min = 4 # Minimum population size allowed
+    
+    # Archive parameters
+    arc_rate = 2.6
+    
+    # Memory parameters
+    H = 6 # History size
+    M_cr = np.full(H, 0.8) # Start with high CR (approx 0.8)
+    M_f = np.full(H, 0.5)  # Start with mid F
+    k_mem = 0
+    
+    # Best solution holder
+    best_sol = None
+    best_fitness = float('inf')
+    
+    # Helper to check time
+    def get_progress():
+        elapsed = (datetime.now() - start_time).total_seconds()
+        return elapsed / max_time
+
+    def check_time():
+        return (datetime.now() - start_time) >= limit
+
+    # --- Initialization ---
+    pop_size = N_init
+    # Latin Hypercube Sampling-like initialization (Stratified) for better coverage
+    pop = np.zeros((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(min_b[d], max_b[d], pop_size + 1)
+        pop[:, d] = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(pop[:, d])
+        
+    fitness = np.zeros(pop_size)
+    
+    # Initial Evaluation
+    for i in range(pop_size):
+        if check_time(): return best_fitness
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            best_sol = pop[i].copy()
+            
+    # Sort population
+    sort_idx = np.argsort(fitness)
+    pop = pop[sort_idx]
+    fitness = fitness[sort_idx]
+    
+    archive = [] 
+    
+    # --- Main Loop ---
+    while not check_time():
+        
+        # 1. Calculate Progress (0.0 to 1.0)
+        progress = get_progress()
+        if progress > 1.0: progress = 1.0
+        
+        # 2. Linear Population Size Reduction (LPSR)
+        # Calculate new target size
+        N_target = int(round(N_init + (N_min - N_init) * progress))
+        N_target = max(N_min, N_target)
+        
+        if pop_size > N_target:
+            # Reduction: Keep best N_target
+            # (Population is always sorted at start of loop or after selection)
+            reduction_count = pop_size - N_target
+            # Add removed individuals to archive if space permits (optional, but good for diversity)
+            for i in range(N_target, pop_size):
+                if len(archive) < int(N_target * arc_rate):
+                    archive.append(pop[i].copy())
+            
+            pop = pop[:N_target]
+            fitness = fitness[:N_target]
+            pop_size = N_target
+            
+            # Reduce archive size
+            max_arc_size = int(pop_size * arc_rate)
+            if len(archive) > max_arc_size:
+                # Remove random elements to shrink
+                idxs = np.random.choice(len(archive), max_arc_size, replace=False)
+                archive = [archive[i] for i in idxs]
+
+        # 3. Dynamic p-value for current-to-pbest
+        # p ranges from 0.25 (exploration) down to 0.05 (exploitation)
+        p_max = 0.25
+        p_min = 0.05
+        p_curr = p_max - (p_max - p_min) * progress
+        
+        # 4. Generate Parameters (F and CR)
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr = M_cr[r_idx]
+        m_f = M_f[r_idx]
+        
+        # CR generation: Normal(m_cr, 0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0.0, 1.0)
+        # Fix: CR should often be 0.0 or 1.0 in DE? No, L-SHADE typically uses continuous.
+        # But if M_cr is essentially -1 (terminal), set to 0. 
+        # (L-SHADE sets -1 to mean 0, but we use actual means).
+        
+        # F generation: Cauchy(m_f, 0.1)
+        # Vectorized rejection sampling for Cauchy
+        f = np.zeros(pop_size)
+        
+        # Base generation
+        f_raw = m_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Check constraints
+        # Rule: if F > 1 -> F = 1. If F <= 0 -> Regenerate.
+        # Fast correction loop
+        bad_indices = np.where(f_raw <= 0)[0]
+        while len(bad_indices) > 0:
+            # Regenerate only bad ones
+            new_vals = m_f[bad_indices] + 0.1 * np.random.standard_cauchy(len(bad_indices))
+            f_raw[bad_indices] = new_vals
+            bad_indices = np.where(f_raw <= 0)[0]
+            
+        f = np.clip(f_raw, 0.0, 1.0) # Clip upper at 1.0
+        
+        # 5. Mutation: current-to-pbest/1
+        # Prepare p-best
+        p_num = max(1, int(p_curr * pop_size))
+        pbest_idxs = np.random.randint(0, p_num, pop_size) # Indices in sorted pop
+        x_pbest = pop[pbest_idxs]
+        
+        # Prepare r1 (distinct from i)
+        # Shift random indices
+        idxs = np.arange(pop_size)
+        r1_idxs = np.random.randint(0, pop_size - 1, pop_size)
+        # If r1_idx >= i, add 1 to skip i
+        r1_idxs = np.where(r1_idxs >= idxs, r1_idxs + 1, r1_idxs)
+        x_r1 = pop[r1_idxs]
+        
+        # Prepare r2 (distinct from i and r1, from Union(Pop, Archive))
+        n_arc = len(archive)
+        union_pop = pop
+        if n_arc > 0:
+            union_pop = np.vstack((pop, np.array(archive)))
+        
+        n_union = len(union_pop)
+        
+        r2_idxs = np.random.randint(0, n_union - 2, pop_size)
+        # Logic to ensure distinctness is complex to fully vectorize perfectly 
+        # without small bias, but approx is okay for DE. 
+        # Let's do a simple check-and-fix loop which is fast enough for N<200.
+        x_r2 = np.zeros((pop_size, dim))
+        for i in range(pop_size):
+            r1 = r1_idxs[i]
+            r2 = np.random.randint(0, n_union)
+            while r2 == i or r2 == r1:
+                r2 = np.random.randint(0, n_union)
+            x_r2[i] = union_pop[r2]
+
+        # Calculate Mutation Vectors (jSO weighting applies specific logic, 
+        # but L-SHADE standard form is robust enough here)
+        # V = X_i + F * (X_pbest - X_i) + F * (X_r1 - X_r2)
+        f_v = f[:, np.newaxis]
+        # Note: L-SHADE uses F for both terms. jSO uses F_w for second term sometimes.
+        # Sticking to standard L-SHADE formula for stability.
+        mutant = pop + f_v * (x_pbest - pop) + f_v * (x_r1 - x_r2)
+        
+        # 6. Crossover (Binomial)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, np.newaxis]
+        
+        # Ensure at least one parameter comes from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        j_mask = np.zeros((pop_size, dim), dtype=bool)
+        j_mask[np.arange(pop_size), j_rand] = True
+        mask = np.logical_or(mask, j_mask)
+        
+        trial = np.where(mask, mutant, pop)
+        
+        # 7. Boundary Constraint Handling (Mid-point / Bounce back)
+        # Instead of clipping, we set value to (bound + old_val) / 2
+        # This preserves the search direction but restricts range.
+        lower_viol = trial < min_b
+        upper_viol = trial > max_b
+        
+        # If violated, set to mean of boundary and parent
+        # This helps avoid getting stuck on the edge
+        trial[lower_viol] = (min_b[np.where(lower_viol)[1]] + pop[lower_viol]) / 2.0
+        trial[upper_viol] = (max_b[np.where(upper_viol)[1]] + pop[upper_viol]) / 2.0
+        
+        # 8. Selection
+        new_pop = pop.copy()
+        new_fitness = fitness.copy()
+        
+        succ_mask = np.zeros(pop_size, dtype=bool)
+        diff_f = np.zeros(pop_size)
+        
+        # Evaluation Loop
+        for i in range(pop_size):
+            if check_time(): return best_fitness
+            
+            t_fit = func(trial[i])
+            
+            if t_fit <= fitness[i]:
+                # Improvement or equal
+                if t_fit < fitness[i]:
+                    archive.append(pop[i].copy())
+                    diff_f[i] = fitness[i] - t_fit
+                    succ_mask[i] = True
+                
+                new_pop[i] = trial[i]
+                new_fitness[i] = t_fit
+                
+                if t_fit < best_fitness:
+                    best_fitness = t_fit
+                    best_sol = trial[i].copy()
+                    
+        pop = new_pop
+        fitness = new_fitness
+        
+        # Sort for next p-best selection
+        sort_p = np.argsort(fitness)
+        pop = pop[sort_p]
+        fitness = fitness[sort_p]
+        
+        # 9. Update Memory (Weighted Lehmer Mean)
+        if np.any(succ_mask):
+            s_f = f[succ_mask]
+            s_cr = cr[succ_mask]
+            df = diff_f[succ_mask]
+            
+            # Normalize weights
+            denom = np.sum(df)
+            if denom == 0:
+                weights = np.ones(len(df)) / len(df)
+            else:
+                weights = df / denom
+                
+            # Update M_cr (Weighted Mean)
+            # Check for terminal value -1 in L-SHADE usually ignored here, we assume bounds [0,1]
+            m_cr_new = np.sum(weights * s_cr)
+            # Clamp for safety
+            M_cr[k_mem] = np.clip(m_cr_new, 0, 1)
+            
+            # Update M_f (Weighted Lehmer Mean)
+            f_numer = np.sum(weights * (s_f**2))
+            f_denom = np.sum(weights * s_f)
+            if f_denom > 0:
+                M_f[k_mem] = np.clip(f_numer / f_denom, 0, 1)
+            else:
+                M_f[k_mem] = 0.5
+                
+            k_mem = (k_mem + 1) % H
+
+        # 10. Soft Restart Check
+        # If population diversity is extremely low, or stagnant, we restart
+        # But we keep the best solution (Soft Restart)
+        # Convergence criteria: std dev of fitness or position
+        if pop_size > N_min:
+            # Check range of fitness
+            fit_range = np.abs(fitness[-1] - fitness[0])
+            if fit_range < 1e-8:
+                # --- SOFT RESTART ---
+                # 1. Keep Best (index 0 after sort)
+                # 2. Perturb best with different scales
+                
+                # Keep top 10%
+                n_keep = max(1, int(0.1 * pop_size))
+                
+                # Remaining slots
+                n_reset = pop_size - n_keep
+                
+                # Generate new individuals
+                # Half: Small Gaussian cloud around best (Exploitation of current basin)
+                # Half: Global random (Exploration)
+                n_cloud = n_reset // 2
+                n_rand = n_reset - n_cloud
+                
+                # Cloud: std dev based on current best history or arbitrary small factor
+                # Use mean parameter bounds width / 20
+                sigma = (diff_b) * 0.05
+                cloud = best_sol + np.random.normal(0, 1, (n_cloud, dim)) * sigma
+                
+                # Random
+                rand_part = min_b + np.random.rand(n_rand, dim) * diff_b
+                
+                # Combine
+                pop[n_keep : n_keep+n_cloud] = cloud
+                pop[n_keep+n_cloud :] = rand_part
+                
+                # Clamp
+                pop = np.clip(pop, min_b, max_b)
+                
+                # Evaluate new batch
+                for i in range(n_keep, pop_size):
+                    if check_time(): return best_fitness
+                    val = func(pop[i])
+                    fitness[i] = val
+                    if val < best_fitness:
+                        best_fitness = val
+                        best_sol = pop[i].copy()
+                
+                # Re-sort
+                idx_r = np.argsort(fitness)
+                pop = pop[idx_r]
+                fitness = fitness[idx_r]
+                
+                # Reset Memory partially? 
+                # No, keeping memory often helps if the function has consistent landscape properties.
+                # But we can disperse the history slightly to encourage diversity.
+                M_cr = np.clip(np.random.normal(M_cr, 0.1), 0, 1)
+                M_f = np.clip(np.random.normal(M_f, 0.1), 0, 1)
+
+    return best_fitness
+
+
+";;;0674d172-5263-4807-8027-c7c8f9191668;{}
+2026-02-13 00:26:46.563559+00:00;10536;model;"Here is a fully operational, self-contained Python algorithm. It implements **IPOP-CMA-ES (Increasing Population Size Covariance Matrix Adaptation Evolution Strategy)**.
+
+### Improvement Logic
+The previous algorithm (jSO/DE) is excellent for separable or weakly linked variables but can struggle with:
+1.  **Rotated Landscapes:** If variables are highly correlated (the ""valley"" is diagonal to the axes), DE's crossover operator is less efficient. CMA-ES learns the correlation matrix to align the search distribution with the landscape.
+2.  **Local Optima (Restart Strategy):** The previous restart mechanism was static. **IPOP-CMA-ES** systematically increases the population size after every restart (doubling it). This changes the search behavior from local (exploitation) with small populations to global (exploration) with large populations, significantly improving the chance of finding the global optimum in complex multimodal functions.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements IPOP-CMA-ES (Increasing Population Size Covariance Matrix Adaptation Evolution Strategy).
+    
+    This algorithm adapts the covariance matrix of the multivariate normal distribution
+    to learn the topography of the function (handling ill-conditioned and rotated problems).
+    It uses a restart mechanism with increasing population size to escape local optima.
+    """"""
+    
+    # --- Time Management ---
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+
+    def check_time():
+        return (datetime.now() - start_time) >= limit
+
+    # --- Problem Normalization ---
+    # We map the specific bounds to a normalized space [0, 10] internally to
+    # standardize the sigma (step size) logic.
+    bounds = np.array(bounds)
+    lower_bounds = bounds[:, 0]
+    upper_bounds = bounds[:, 1]
+    bound_range = upper_bounds - lower_bounds
+    
+    # Scale helper functions
+    def to_pheno(x_geno):
+        # Map [0, 10] back to [lower, upper]
+        # We perform simple scaling. 
+        # Note: CMA-ES can generate values outside, we clip for evaluation.
+        unit = x_geno / 10.0
+        val = lower_bounds + unit * bound_range
+        return np.clip(val, lower_bounds, upper_bounds)
+
+    def get_penalty(x_geno, x_pheno):
+        # If CMA generates out of bounds, x_pheno is clipped.
+        # We calculate distance in the normalized space for penalty.
+        # This guides the mean back towards the feasible region.
+        # Map pheno back to geno space to compare
+        back_mapped = (x_pheno - lower_bounds) / bound_range * 10.0
+        dist_sq = np.sum((x_geno - back_mapped)**2)
+        return dist_sq
+
+    # --- Global Best Tracking ---
+    best_fitness = float('inf')
+    best_sol = None # Stored in real (phenotype) coordinates
+
+    # --- IPOP-CMA-ES Loop ---
+    restart_count = 0
+    
+    while not check_time():
+        
+        # 1. Initialize Strategy Parameters for this Restart
+        # Default population size for CMA-ES: 4 + 3 * log(N)
+        # Increase by factor of 2^restart_count
+        pop_size = int((4 + 3 * np.log(dim)) * (2 ** restart_count))
+        
+        # Initialize Mean (center of normalized space)
+        xmean = np.full(dim, 5.0) 
+        
+        # Initialize Step-size (sigma)
+        sigma = 2.0 # Covers a good chunk of [0, 10]
+        
+        # Initialize Covariance Matrix components
+        # C = B * D * (B * D).T
+        B = np.eye(dim)
+        D = np.ones(dim)
+        C = np.eye(dim) # Covariance matrix
+        invsqrtC = np.eye(dim)
+        
+        # Evolution Paths
+        pc = np.zeros(dim)
+        ps = np.zeros(dim)
+        
+        # Selection Weights (logarithmic)
+        mu = pop_size // 2
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights /= np.sum(weights) # Normalize
+        mueff = 1.0 / np.sum(weights**2) # Variance effective selection mass
+        
+        # Adaptation Constants (Standard CMA-ES settings)
+        cc = (4 + mueff / dim) / (dim + 4 + 2 * mueff / dim)
+        cs = (mueff + 2) / (dim + mueff + 5)
+        c1 = 2 / ((dim + 1.3)**2 + mueff)
+        cmu = min(1 - c1, 2 * (mueff - 2 + 1 / mueff) / ((dim + 2)**2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1) / (dim + 1)) - 1) + cs
+        
+        # Safety for eigen update frequency (O(N^3) is heavy)
+        eigeneval = 0
+        chiN = np.sqrt(dim) * (1 - 1 / (4 * dim) + 1 / (21 * dim**2))
+        
+        # Inner Loop: Generations
+        gen = 0
+        stop_restart = False
+        
+        while not stop_restart and not check_time():
+            gen += 1
+            
+            # 2. Sampling
+            # Generate offspring: x_i = m + sigma * B * D * z_i
+            # z ~ N(0, I)
+            arz = np.random.standard_normal((pop_size, dim))
+            ary = B @ (D * arz).T # (dim, pop_size)
+            arx = xmean[:, None] + sigma * ary
+            arx = arx.T # (pop_size, dim)
+            
+            # 3. Evaluation
+            fitness = np.zeros(pop_size)
+            
+            for k in range(pop_size):
+                if check_time(): return best_fitness
+                
+                # Boundary Handling
+                real_params = to_pheno(arx[k])
+                
+                # Function Call
+                val = func(real_params)
+                
+                # Save Best
+                if val < best_fitness:
+                    best_fitness = val
+                    best_sol = real_params.copy()
+                
+                # Penalty for out-of-bounds (soft constraints)
+                # Adds a gradient pointing back to the feasible region
+                penalty = get_penalty(arx[k], real_params)
+                fitness[k] = val + penalty * 1e4 # High penalty weight
+            
+            # 4. Selection and Recombination
+            arindex = np.argsort(fitness)
+            # Pick best mu
+            arindex = arindex[:mu]
+            
+            xold = xmean.copy()
+            # Recombination: Weighted mean of selected
+            # (dim,) = ((dim, mu) @ (mu,)) 
+            z_sel = arz[arindex]
+            xmean = xmean + sigma * (ary[:, arindex] @ weights)
+            
+            # 5. Step-size Control (Evolution Path)
+            # Calculate z_m (weighted mean of z)
+            zmean = z_sel.T @ weights
+            
+            # Update evolution path ps
+            # Conjugate evolution path
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * (B @ zmean)
+            
+            # HSA (Heaviside Step Function logic for pc update)
+            hsig = float(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs)**(2 * (gen+1))) / chiN < 1.4 + 2 / (dim + 1))
+            
+            # Update evolution path pc
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (ary[:, arindex] @ weights)
+            
+            # Update Sigma
+            # exp( (norm(ps)/chiN - 1) * cs / damps )
+            sigma *= np.exp((np.linalg.norm(ps) / chiN - 1) * cs / damps)
+            
+            # 6. Covariance Matrix Adaptation
+            # Rank-1 update (pc * pc.T)
+            # Rank-mu update (weighted variance of selected steps)
+            
+            # Calculate Rank-mu part: sum( w_i * y_i * y_i.T )
+            # Optimized vector calc
+            y_sel = ary[:, arindex] # (dim, mu)
+            # We need matrix multiplication Y * W * Y.T where W is diag(weights)
+            # Equivalent to (Y * weights) @ Y.T ?? No.
+            # Just loop or specialized dot.
+            # r_mu = y_sel @ np.diag(weights) @ y_sel.T # Expensive creation of diag
+            # Use broadcasting:
+            weighted_y = y_sel * weights[None, :]
+            rank_mu_update = weighted_y @ y_sel.T
+            
+            pc_matrix = np.outer(pc, pc)
+            
+            # Combine updates
+            # Adapt covariance matrix C
+            # Old C * decay + Rank1 * c1 + RankMu * cmu
+            C = (1 - c1 - cmu) * C \
+                + c1 * (pc_matrix + (1 - hsig) * cc * (2 - cc) * C) \
+                + cmu * rank_mu_update
+            
+            # 7. Decomposition (Eigen)
+            # Update B and D from C every few generations (diagonalization)
+            # O(N^3), so don't do it every step.
+            if (gen - eigeneval) > (1.0 / (c1 + cmu) / dim / 10.0):
+                eigeneval = gen
+                # Enforce symmetry
+                C = np.triu(C) + np.triu(C, 1).T
+                
+                try:
+                    eig_vals, eig_vecs = np.linalg.eigh(C)
+                    # Numerical stability
+                    eig_vals = np.maximum(eig_vals, 0)
+                    D = np.sqrt(eig_vals)
+                    B = eig_vecs
+                except np.linalg.LinAlgError:
+                    # If C is corrupted, clean it
+                    C = np.eye(dim)
+                    D = np.ones(dim)
+                    B = np.eye(dim)
+
+            # 8. Check Stop/Restart Criteria
+            
+            # A. Range of fitness in population is too small (Convergence)
+            if fitness[arindex[-1]] - fitness[arindex[0]] < 1e-12:
+                stop_restart = True
+            
+            # B. Sigma is too small (Stagnation)
+            if sigma < 1e-15:
+                stop_restart = True
+                
+            # C. Sigma is too large (Divergence / Exploring useless space)
+            if sigma > 1e5:
+                stop_restart = True
+                
+            # D. Condition number of C exceeds limit
+            if np.min(D) > 0:
+                cond_num = np.max(D) / np.min(D)
+                if cond_num > 1e14:
+                    stop_restart = True
+            else:
+                 stop_restart = True
+
+            # E. No improvement over last 10 + 30*N/lambda generations (Stagnation)
+            # (Simplified check: if best fitness hasn't moved significantly in last 50 gens)
+            # Handled implicitly by sigma reduction usually, but explicit check:
+            # Note: For time efficiency in this template, we rely mostly on A and B.
+
+        # End of Inner Loop
+        restart_count += 1
+        
+    return best_fitness
+```";;;417b8d50-02e3-41e8-91e8-c10096fab4d4;{}
+2026-02-13 00:41:46.799680+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 2.234233111257126
+
+ The last generated algorithm code:
+#Here is a fully operational, self-contained Python algorithm. It implements **IPOP-CMA-ES (Increasing Population Size Covariance Matrix Adaptation Evolution Strategy)**.
+#
+#### Improvement Logic
+#The previous algorithm (jSO/DE) is excellent for separable or weakly linked variables but can struggle with:
+#1.  **Rotated Landscapes:** If variables are highly correlated (the ""valley"" is diagonal to the axes), DE's crossover operator is less efficient. CMA-ES learns the correlation matrix to align the search distribution with the landscape.
+#2.  **Local Optima (Restart Strategy):** The previous restart mechanism was static. **IPOP-CMA-ES** systematically increases the population size after every restart (doubling it). This changes the search behavior from local (exploitation) with small populations to global (exploration) with large populations, significantly improving the chance of finding the global optimum in complex multimodal functions.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements IPOP-CMA-ES (Increasing Population Size Covariance Matrix Adaptation Evolution Strategy).
+    
+    This algorithm adapts the covariance matrix of the multivariate normal distribution
+    to learn the topography of the function (handling ill-conditioned and rotated problems).
+    It uses a restart mechanism with increasing population size to escape local optima.
+    """"""
+    
+    # --- Time Management ---
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+
+    def check_time():
+        return (datetime.now() - start_time) >= limit
+
+    # --- Problem Normalization ---
+    # We map the specific bounds to a normalized space [0, 10] internally to
+    # standardize the sigma (step size) logic.
+    bounds = np.array(bounds)
+    lower_bounds = bounds[:, 0]
+    upper_bounds = bounds[:, 1]
+    bound_range = upper_bounds - lower_bounds
+    
+    # Scale helper functions
+    def to_pheno(x_geno):
+        # Map [0, 10] back to [lower, upper]
+        # We perform simple scaling. 
+        # Note: CMA-ES can generate values outside, we clip for evaluation.
+        unit = x_geno / 10.0
+        val = lower_bounds + unit * bound_range
+        return np.clip(val, lower_bounds, upper_bounds)
+
+    def get_penalty(x_geno, x_pheno):
+        # If CMA generates out of bounds, x_pheno is clipped.
+        # We calculate distance in the normalized space for penalty.
+        # This guides the mean back towards the feasible region.
+        # Map pheno back to geno space to compare
+        back_mapped = (x_pheno - lower_bounds) / bound_range * 10.0
+        dist_sq = np.sum((x_geno - back_mapped)**2)
+        return dist_sq
+
+    # --- Global Best Tracking ---
+    best_fitness = float('inf')
+    best_sol = None # Stored in real (phenotype) coordinates
+
+    # --- IPOP-CMA-ES Loop ---
+    restart_count = 0
+    
+    while not check_time():
+        
+        # 1. Initialize Strategy Parameters for this Restart
+        # Default population size for CMA-ES: 4 + 3 * log(N)
+        # Increase by factor of 2^restart_count
+        pop_size = int((4 + 3 * np.log(dim)) * (2 ** restart_count))
+        
+        # Initialize Mean (center of normalized space)
+        xmean = np.full(dim, 5.0) 
+        
+        # Initialize Step-size (sigma)
+        sigma = 2.0 # Covers a good chunk of [0, 10]
+        
+        # Initialize Covariance Matrix components
+        # C = B * D * (B * D).T
+        B = np.eye(dim)
+        D = np.ones(dim)
+        C = np.eye(dim) # Covariance matrix
+        invsqrtC = np.eye(dim)
+        
+        # Evolution Paths
+        pc = np.zeros(dim)
+        ps = np.zeros(dim)
+        
+        # Selection Weights (logarithmic)
+        mu = pop_size // 2
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights /= np.sum(weights) # Normalize
+        mueff = 1.0 / np.sum(weights**2) # Variance effective selection mass
+        
+        # Adaptation Constants (Standard CMA-ES settings)
+        cc = (4 + mueff / dim) / (dim + 4 + 2 * mueff / dim)
+        cs = (mueff + 2) / (dim + mueff + 5)
+        c1 = 2 / ((dim + 1.3)**2 + mueff)
+        cmu = min(1 - c1, 2 * (mueff - 2 + 1 / mueff) / ((dim + 2)**2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1) / (dim + 1)) - 1) + cs
+        
+        # Safety for eigen update frequency (O(N^3) is heavy)
+        eigeneval = 0
+        chiN = np.sqrt(dim) * (1 - 1 / (4 * dim) + 1 / (21 * dim**2))
+        
+        # Inner Loop: Generations
+        gen = 0
+        stop_restart = False
+        
+        while not stop_restart and not check_time():
+            gen += 1
+            
+            # 2. Sampling
+            # Generate offspring: x_i = m + sigma * B * D * z_i
+            # z ~ N(0, I)
+            arz = np.random.standard_normal((pop_size, dim))
+            ary = B @ (D * arz).T # (dim, pop_size)
+            arx = xmean[:, None] + sigma * ary
+            arx = arx.T # (pop_size, dim)
+            
+            # 3. Evaluation
+            fitness = np.zeros(pop_size)
+            
+            for k in range(pop_size):
+                if check_time(): return best_fitness
+                
+                # Boundary Handling
+                real_params = to_pheno(arx[k])
+                
+                # Function Call
+                val = func(real_params)
+                
+                # Save Best
+                if val < best_fitness:
+                    best_fitness = val
+                    best_sol = real_params.copy()
+                
+                # Penalty for out-of-bounds (soft constraints)
+                # Adds a gradient pointing back to the feasible region
+                penalty = get_penalty(arx[k], real_params)
+                fitness[k] = val + penalty * 1e4 # High penalty weight
+            
+            # 4. Selection and Recombination
+            arindex = np.argsort(fitness)
+            # Pick best mu
+            arindex = arindex[:mu]
+            
+            xold = xmean.copy()
+            # Recombination: Weighted mean of selected
+            # (dim,) = ((dim, mu) @ (mu,)) 
+            z_sel = arz[arindex]
+            xmean = xmean + sigma * (ary[:, arindex] @ weights)
+            
+            # 5. Step-size Control (Evolution Path)
+            # Calculate z_m (weighted mean of z)
+            zmean = z_sel.T @ weights
+            
+            # Update evolution path ps
+            # Conjugate evolution path
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * (B @ zmean)
+            
+            # HSA (Heaviside Step Function logic for pc update)
+            hsig = float(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs)**(2 * (gen+1))) / chiN < 1.4 + 2 / (dim + 1))
+            
+            # Update evolution path pc
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (ary[:, arindex] @ weights)
+            
+            # Update Sigma
+            # exp( (norm(ps)/chiN - 1) * cs / damps )
+            sigma *= np.exp((np.linalg.norm(ps) / chiN - 1) * cs / damps)
+            
+            # 6. Covariance Matrix Adaptation
+            # Rank-1 update (pc * pc.T)
+            # Rank-mu update (weighted variance of selected steps)
+            
+            # Calculate Rank-mu part: sum( w_i * y_i * y_i.T )
+            # Optimized vector calc
+            y_sel = ary[:, arindex] # (dim, mu)
+            # We need matrix multiplication Y * W * Y.T where W is diag(weights)
+            # Equivalent to (Y * weights) @ Y.T ?? No.
+            # Just loop or specialized dot.
+            # r_mu = y_sel @ np.diag(weights) @ y_sel.T # Expensive creation of diag
+            # Use broadcasting:
+            weighted_y = y_sel * weights[None, :]
+            rank_mu_update = weighted_y @ y_sel.T
+            
+            pc_matrix = np.outer(pc, pc)
+            
+            # Combine updates
+            # Adapt covariance matrix C
+            # Old C * decay + Rank1 * c1 + RankMu * cmu
+            C = (1 - c1 - cmu) * C \
+                + c1 * (pc_matrix + (1 - hsig) * cc * (2 - cc) * C) \
+                + cmu * rank_mu_update
+            
+            # 7. Decomposition (Eigen)
+            # Update B and D from C every few generations (diagonalization)
+            # O(N^3), so don't do it every step.
+            if (gen - eigeneval) > (1.0 / (c1 + cmu) / dim / 10.0):
+                eigeneval = gen
+                # Enforce symmetry
+                C = np.triu(C) + np.triu(C, 1).T
+                
+                try:
+                    eig_vals, eig_vecs = np.linalg.eigh(C)
+                    # Numerical stability
+                    eig_vals = np.maximum(eig_vals, 0)
+                    D = np.sqrt(eig_vals)
+                    B = eig_vecs
+                except np.linalg.LinAlgError:
+                    # If C is corrupted, clean it
+                    C = np.eye(dim)
+                    D = np.ones(dim)
+                    B = np.eye(dim)
+
+            # 8. Check Stop/Restart Criteria
+            
+            # A. Range of fitness in population is too small (Convergence)
+            if fitness[arindex[-1]] - fitness[arindex[0]] < 1e-12:
+                stop_restart = True
+            
+            # B. Sigma is too small (Stagnation)
+            if sigma < 1e-15:
+                stop_restart = True
+                
+            # C. Sigma is too large (Divergence / Exploring useless space)
+            if sigma > 1e5:
+                stop_restart = True
+                
+            # D. Condition number of C exceeds limit
+            if np.min(D) > 0:
+                cond_num = np.max(D) / np.min(D)
+                if cond_num > 1e14:
+                    stop_restart = True
+            else:
+                 stop_restart = True
+
+            # E. No improvement over last 10 + 30*N/lambda generations (Stagnation)
+            # (Simplified check: if best fitness hasn't moved significantly in last 50 gens)
+            # Handled implicitly by sigma reduction usually, but explicit check:
+            # Note: For time efficiency in this template, we rely mostly on A and B.
+
+        # End of Inner Loop
+        restart_count += 1
+        
+    return best_fitness
+
+
+";;;d8a5afa7-d1dd-4fb0-b7fe-e62baceee4a1;{}
+2026-02-13 00:42:40.231195+00:00;9685;model;"Here is a fully operational, self-contained Python algorithm implementing **L-SHADE** (Linear Success-History based Adaptive Differential Evolution).
+
+### Improvement Logic
+The previous algorithm (IPOP-CMA-ES) is powerful for local convergence and rotated landscapes but can be computationally expensive ($O(N^3)$ per generation) and sometimes converges prematurely on highly multimodal functions.
+
+**L-SHADE** is a state-of-the-art global optimizer (winner of multiple CEC competitions) that improves upon this by:
+1.  **Adaptive Control Parameters ($F$ and $Cr$):** It learns the optimal mutation scale and crossover rate based on successful past updates, removing the need for manual tuning.
+2.  **Linear Population Size Reduction (LPSR):** It starts with a large population to explore the global space and linearly reduces the population size over time. This forces the algorithm to shift naturally from **Exploration** (finding the valley) to **Exploitation** (refining the minimum).
+3.  **External Archive:** It maintains diversity by utilizing inferior solutions (recently replaced parents) in the mutation strategy, preventing stagnation.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements L-SHADE (Linear Success-History based Adaptive Differential Evolution).
+    
+    Features:
+    - Adapts mutation factor (F) and crossover rate (Cr) using a historical memory.
+    - Uses 'current-to-pbest/1' mutation strategy using an external archive.
+    - Linearly reduces population size from N_init to N_min to balance exploration/exploitation.
+    """"""
+    
+    # --- Configuration ---
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # L-SHADE Constants
+    N_min = 4  # Minimum population size
+    # Initial population size: 18 * dim is a standard literature value for SHADE, 
+    # but we cap it for very high dimensions to ensure speed.
+    N_init = int(round(max(10, min(18 * dim, 300)))) 
+    
+    pop_size = N_init
+    max_pop_size = N_init
+    
+    # History Memory Parameters
+    H = 6 # Memory size
+    M_cr = np.full(H, 0.5) # Memory for Crossover
+    M_f = np.full(H, 0.5)  # Memory for Mutation Factor
+    k_mem = 0 # Memory index pointer
+    
+    # Archiving
+    archive = []
+    arc_rate = 2.6
+    max_arc_size = int(round(N_init * arc_rate))
+    
+    # --- Initialization ---
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    
+    # Random initial population
+    pop = lb + np.random.rand(pop_size, dim) * (ub - lb)
+    fitness = np.zeros(pop_size)
+    
+    # Evaluate initial population
+    best_fitness = float('inf')
+    best_sol = None
+    
+    # Safety check for immediate timeout
+    if (datetime.now() - start_time) >= limit:
+        # If no time, just run one random guess
+        return func(pop[0])
+
+    for i in range(pop_size):
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            best_sol = pop[i].copy()
+        # Time check inside init loop for very slow functions
+        if (datetime.now() - start_time) >= limit:
+            return best_fitness
+
+    # --- Main Loop ---
+    while True:
+        # Check Time
+        elapsed = datetime.now() - start_time
+        if elapsed >= limit:
+            break
+        
+        # Calculate Progress (0.0 to 1.0) for Population Reduction
+        # We rely on time ratio since max_evals is unknown.
+        progress = min(1.0, elapsed.total_seconds() / max_time)
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        # Calculate target population size based on remaining time
+        next_pop_size = int(round(((N_min - N_init) * progress) + N_init))
+        next_pop_size = max(N_min, next_pop_size)
+        
+        if pop_size > next_pop_size:
+            # Sort by fitness (descending badness) to remove worst
+            sort_idx = np.argsort(fitness)
+            n_remove = pop_size - next_pop_size
+            
+            # Remove worst individuals
+            # Keep the top 'next_pop_size'
+            keep_idx = sort_idx[:next_pop_size]
+            pop = pop[keep_idx]
+            fitness = fitness[keep_idx]
+            pop_size = next_pop_size
+            
+            # Resize Archive if necessary
+            curr_arc_size = int(round(pop_size * arc_rate))
+            if len(archive) > curr_arc_size:
+                # Randomly delete excess archive members
+                del_indices = np.random.choice(len(archive), len(archive) - curr_arc_size, replace=False)
+                archive = [arr for i, arr in enumerate(archive) if i not in del_indices]
+                max_arc_size = curr_arc_size
+
+        # 2. Parameter Generation
+        # Generate F and Cr for each individual based on memory
+        # Pick random memory index for each individual
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr_selected = M_cr[r_idx]
+        m_f_selected = M_f[r_idx]
+        
+        # Cauchy distribution for F: location=M_f, scale=0.1
+        # If F > 1, cap at 1. If F <= 0, regenerate.
+        crs = np.random.normal(m_cr_selected, 0.1)
+        crs = np.clip(crs, 0, 1) # Normal dist clipped [0,1]
+        
+        # Cauchy generation manually: loc + scale * tan(pi * (rand - 0.5))
+        fs = np.zeros(pop_size)
+        for i in range(pop_size):
+            while True:
+                f_val = m_f_selected[i] + 0.1 * np.tan(np.pi * (np.random.rand() - 0.5))
+                if f_val <= 0: continue
+                if f_val > 1: f_val = 1.0
+                fs[i] = f_val
+                break
+
+        # 3. Mutation (current-to-pbest/1) & Crossover
+        # v = x + F * (x_pbest - x) + F * (x_r1 - x_r2)
+        
+        # Sort population to find p-best
+        sorted_indices = np.argsort(fitness)
+        
+        # p-best parameter (top p% of population, minimum 2 individuals)
+        p_ratio = max(2.0 / pop_size, 0.2 * (1 - progress)) # Adaptive p seems to help, or fixed 0.11
+        p_count = max(2, int(round(p_ratio * pop_size)))
+        
+        trial_pop = np.zeros_like(pop)
+        
+        # Prepare Archive + Population for the second difference vector
+        # (Union of current population and archive)
+        if len(archive) > 0:
+            pop_all = np.vstack((pop, np.array(archive)))
+        else:
+            pop_all = pop
+            
+        for i in range(pop_size):
+            # Select p-best: random from top p_count
+            pbest_idx = sorted_indices[np.random.randint(0, p_count)]
+            x_pbest = pop[pbest_idx]
+            
+            # Select r1: random from pop, != i
+            r1 = np.random.randint(0, pop_size)
+            while r1 == i:
+                r1 = np.random.randint(0, pop_size)
+            x_r1 = pop[r1]
+            
+            # Select r2: random from pop U archive, != i, != r1
+            r2 = np.random.randint(0, len(pop_all))
+            while r2 == i or (r2 < pop_size and r2 == r1):
+                r2 = np.random.randint(0, len(pop_all))
+            x_r2 = pop_all[r2]
+            
+            # Mutation Vector
+            mutant = pop[i] + fs[i] * (x_pbest - pop[i]) + fs[i] * (x_r1 - x_r2)
+            
+            # Binomial Crossover
+            # Pick a random dimension to ensure at least one changes
+            j_rand = np.random.randint(0, dim)
+            mask = (np.random.rand(dim) < crs[i])
+            mask[j_rand] = True
+            
+            trial = np.where(mask, mutant, pop[i])
+            
+            # Bound Handling: Resample if out of bounds or Clip? 
+            # SHADE usually clips or uses bounce-back. Clipping is safer/faster.
+            trial = np.clip(trial, lb, ub)
+            trial_pop[i] = trial
+
+        # 4. Evaluation & Selection
+        trial_fitness = np.zeros(pop_size)
+        success_mask = np.zeros(pop_size, dtype=bool)
+        diff_fitness = np.zeros(pop_size)
+        
+        for i in range(pop_size):
+            # Check time strictly inside the evaluation loop
+            if (datetime.now() - start_time) >= limit:
+                return best_fitness
+            
+            f_trial = func(trial_pop[i])
+            trial_fitness[i] = f_trial
+            
+            # Greedy Selection
+            if f_trial < fitness[i]:
+                success_mask[i] = True
+                diff_fitness[i] = fitness[i] - f_trial
+                
+                # Add parent to archive before replacement
+                archive.append(pop[i].copy())
+                
+                # Update population
+                pop[i] = trial_pop[i]
+                fitness[i] = f_trial
+                
+                if f_trial < best_fitness:
+                    best_fitness = f_trial
+                    best_sol = trial_pop[i].copy()
+        
+        # Maintain Archive Size
+        if len(archive) > max_arc_size:
+            # Randomly remove elements
+            num_to_remove = len(archive) - max_arc_size
+            # Simply shuffle and slice for efficiency
+            import random
+            random.shuffle(archive)
+            archive = archive[:max_arc_size]
+
+        # 5. Update Memory (History)
+        # Only if there were successful individuals
+        if np.any(success_mask):
+            succ_f = fs[success_mask]
+            succ_cr = crs[success_mask]
+            succ_diff = diff_fitness[success_mask]
+            
+            # Weights based on fitness improvement
+            weights = succ_diff / np.sum(succ_diff)
+            
+            # Weighted Lehmer Mean for F
+            # mean_wl = sum(w * f^2) / sum(w * f)
+            mean_f = np.sum(weights * (succ_f ** 2)) / np.sum(weights * succ_f)
+            
+            # Weighted Arithmetic Mean for Cr
+            mean_cr = np.sum(weights * succ_cr)
+            
+            # Update Memory (moving average could be used, here simple ring buffer)
+            M_f[k_mem] = mean_f
+            M_cr[k_mem] = mean_cr
+            
+            k_mem = (k_mem + 1) % H
+            
+    return best_fitness
+```";;;c266b245-a1a7-4a5c-8487-27435a2b6f3b;{}
+2026-02-13 00:57:40.462613+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 50.66873158760814
+
+ The last generated algorithm code:
+#Here is a fully operational, self-contained Python algorithm implementing **L-SHADE** (Linear Success-History based Adaptive Differential Evolution).
+#
+#### Improvement Logic
+#The previous algorithm (IPOP-CMA-ES) is powerful for local convergence and rotated landscapes but can be computationally expensive ($O(N^3)$ per generation) and sometimes converges prematurely on highly multimodal functions.
+#
+#**L-SHADE** is a state-of-the-art global optimizer (winner of multiple CEC competitions) that improves upon this by:
+#1.  **Adaptive Control Parameters ($F$ and $Cr$):** It learns the optimal mutation scale and crossover rate based on successful past updates, removing the need for manual tuning.
+#2.  **Linear Population Size Reduction (LPSR):** It starts with a large population to explore the global space and linearly reduces the population size over time. This forces the algorithm to shift naturally from **Exploration** (finding the valley) to **Exploitation** (refining the minimum).
+#3.  **External Archive:** It maintains diversity by utilizing inferior solutions (recently replaced parents) in the mutation strategy, preventing stagnation.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements L-SHADE (Linear Success-History based Adaptive Differential Evolution).
+    
+    Features:
+    - Adapts mutation factor (F) and crossover rate (Cr) using a historical memory.
+    - Uses 'current-to-pbest/1' mutation strategy using an external archive.
+    - Linearly reduces population size from N_init to N_min to balance exploration/exploitation.
+    """"""
+    
+    # --- Configuration ---
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # L-SHADE Constants
+    N_min = 4  # Minimum population size
+    # Initial population size: 18 * dim is a standard literature value for SHADE, 
+    # but we cap it for very high dimensions to ensure speed.
+    N_init = int(round(max(10, min(18 * dim, 300)))) 
+    
+    pop_size = N_init
+    max_pop_size = N_init
+    
+    # History Memory Parameters
+    H = 6 # Memory size
+    M_cr = np.full(H, 0.5) # Memory for Crossover
+    M_f = np.full(H, 0.5)  # Memory for Mutation Factor
+    k_mem = 0 # Memory index pointer
+    
+    # Archiving
+    archive = []
+    arc_rate = 2.6
+    max_arc_size = int(round(N_init * arc_rate))
+    
+    # --- Initialization ---
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    
+    # Random initial population
+    pop = lb + np.random.rand(pop_size, dim) * (ub - lb)
+    fitness = np.zeros(pop_size)
+    
+    # Evaluate initial population
+    best_fitness = float('inf')
+    best_sol = None
+    
+    # Safety check for immediate timeout
+    if (datetime.now() - start_time) >= limit:
+        # If no time, just run one random guess
+        return func(pop[0])
+
+    for i in range(pop_size):
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            best_sol = pop[i].copy()
+        # Time check inside init loop for very slow functions
+        if (datetime.now() - start_time) >= limit:
+            return best_fitness
+
+    # --- Main Loop ---
+    while True:
+        # Check Time
+        elapsed = datetime.now() - start_time
+        if elapsed >= limit:
+            break
+        
+        # Calculate Progress (0.0 to 1.0) for Population Reduction
+        # We rely on time ratio since max_evals is unknown.
+        progress = min(1.0, elapsed.total_seconds() / max_time)
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        # Calculate target population size based on remaining time
+        next_pop_size = int(round(((N_min - N_init) * progress) + N_init))
+        next_pop_size = max(N_min, next_pop_size)
+        
+        if pop_size > next_pop_size:
+            # Sort by fitness (descending badness) to remove worst
+            sort_idx = np.argsort(fitness)
+            n_remove = pop_size - next_pop_size
+            
+            # Remove worst individuals
+            # Keep the top 'next_pop_size'
+            keep_idx = sort_idx[:next_pop_size]
+            pop = pop[keep_idx]
+            fitness = fitness[keep_idx]
+            pop_size = next_pop_size
+            
+            # Resize Archive if necessary
+            curr_arc_size = int(round(pop_size * arc_rate))
+            if len(archive) > curr_arc_size:
+                # Randomly delete excess archive members
+                del_indices = np.random.choice(len(archive), len(archive) - curr_arc_size, replace=False)
+                archive = [arr for i, arr in enumerate(archive) if i not in del_indices]
+                max_arc_size = curr_arc_size
+
+        # 2. Parameter Generation
+        # Generate F and Cr for each individual based on memory
+        # Pick random memory index for each individual
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr_selected = M_cr[r_idx]
+        m_f_selected = M_f[r_idx]
+        
+        # Cauchy distribution for F: location=M_f, scale=0.1
+        # If F > 1, cap at 1. If F <= 0, regenerate.
+        crs = np.random.normal(m_cr_selected, 0.1)
+        crs = np.clip(crs, 0, 1) # Normal dist clipped [0,1]
+        
+        # Cauchy generation manually: loc + scale * tan(pi * (rand - 0.5))
+        fs = np.zeros(pop_size)
+        for i in range(pop_size):
+            while True:
+                f_val = m_f_selected[i] + 0.1 * np.tan(np.pi * (np.random.rand() - 0.5))
+                if f_val <= 0: continue
+                if f_val > 1: f_val = 1.0
+                fs[i] = f_val
+                break
+
+        # 3. Mutation (current-to-pbest/1) & Crossover
+        # v = x + F * (x_pbest - x) + F * (x_r1 - x_r2)
+        
+        # Sort population to find p-best
+        sorted_indices = np.argsort(fitness)
+        
+        # p-best parameter (top p% of population, minimum 2 individuals)
+        p_ratio = max(2.0 / pop_size, 0.2 * (1 - progress)) # Adaptive p seems to help, or fixed 0.11
+        p_count = max(2, int(round(p_ratio * pop_size)))
+        
+        trial_pop = np.zeros_like(pop)
+        
+        # Prepare Archive + Population for the second difference vector
+        # (Union of current population and archive)
+        if len(archive) > 0:
+            pop_all = np.vstack((pop, np.array(archive)))
+        else:
+            pop_all = pop
+            
+        for i in range(pop_size):
+            # Select p-best: random from top p_count
+            pbest_idx = sorted_indices[np.random.randint(0, p_count)]
+            x_pbest = pop[pbest_idx]
+            
+            # Select r1: random from pop, != i
+            r1 = np.random.randint(0, pop_size)
+            while r1 == i:
+                r1 = np.random.randint(0, pop_size)
+            x_r1 = pop[r1]
+            
+            # Select r2: random from pop U archive, != i, != r1
+            r2 = np.random.randint(0, len(pop_all))
+            while r2 == i or (r2 < pop_size and r2 == r1):
+                r2 = np.random.randint(0, len(pop_all))
+            x_r2 = pop_all[r2]
+            
+            # Mutation Vector
+            mutant = pop[i] + fs[i] * (x_pbest - pop[i]) + fs[i] * (x_r1 - x_r2)
+            
+            # Binomial Crossover
+            # Pick a random dimension to ensure at least one changes
+            j_rand = np.random.randint(0, dim)
+            mask = (np.random.rand(dim) < crs[i])
+            mask[j_rand] = True
+            
+            trial = np.where(mask, mutant, pop[i])
+            
+            # Bound Handling: Resample if out of bounds or Clip? 
+            # SHADE usually clips or uses bounce-back. Clipping is safer/faster.
+            trial = np.clip(trial, lb, ub)
+            trial_pop[i] = trial
+
+        # 4. Evaluation & Selection
+        trial_fitness = np.zeros(pop_size)
+        success_mask = np.zeros(pop_size, dtype=bool)
+        diff_fitness = np.zeros(pop_size)
+        
+        for i in range(pop_size):
+            # Check time strictly inside the evaluation loop
+            if (datetime.now() - start_time) >= limit:
+                return best_fitness
+            
+            f_trial = func(trial_pop[i])
+            trial_fitness[i] = f_trial
+            
+            # Greedy Selection
+            if f_trial < fitness[i]:
+                success_mask[i] = True
+                diff_fitness[i] = fitness[i] - f_trial
+                
+                # Add parent to archive before replacement
+                archive.append(pop[i].copy())
+                
+                # Update population
+                pop[i] = trial_pop[i]
+                fitness[i] = f_trial
+                
+                if f_trial < best_fitness:
+                    best_fitness = f_trial
+                    best_sol = trial_pop[i].copy()
+        
+        # Maintain Archive Size
+        if len(archive) > max_arc_size:
+            # Randomly remove elements
+            num_to_remove = len(archive) - max_arc_size
+            # Simply shuffle and slice for efficiency
+            import random
+            random.shuffle(archive)
+            archive = archive[:max_arc_size]
+
+        # 5. Update Memory (History)
+        # Only if there were successful individuals
+        if np.any(success_mask):
+            succ_f = fs[success_mask]
+            succ_cr = crs[success_mask]
+            succ_diff = diff_fitness[success_mask]
+            
+            # Weights based on fitness improvement
+            weights = succ_diff / np.sum(succ_diff)
+            
+            # Weighted Lehmer Mean for F
+            # mean_wl = sum(w * f^2) / sum(w * f)
+            mean_f = np.sum(weights * (succ_f ** 2)) / np.sum(weights * succ_f)
+            
+            # Weighted Arithmetic Mean for Cr
+            mean_cr = np.sum(weights * succ_cr)
+            
+            # Update Memory (moving average could be used, here simple ring buffer)
+            M_f[k_mem] = mean_f
+            M_cr[k_mem] = mean_cr
+            
+            k_mem = (k_mem + 1) % H
+            
+    return best_fitness
+
+
+";;;726eae3c-4569-43fb-8bab-e7b47df9c239;{}
+2026-02-13 00:59:28.744462+00:00;16366;model;"Here is a fully operational, self-contained Python algorithm implementing **L-SHADE** (Linear Success-History based Adaptive Differential Evolution) with vectorized operations and Linear Population Size Reduction.
+
+#### Improvement Logic
+1.  **Vectorization**: The previous implementation used Python loops for mutation and crossover. This version uses NumPy vector operations to generate the entire population of trial vectors at once, significantly reducing overhead and increasing the number of evaluations per second.
+2.  **Boundary Handling**: Instead of simple clipping (which reduces diversity at the edges), this implementation uses a ""midpoint bounce-back"" strategy (common in CEC competition winners like jSO), placing particles between the boundary and the previous position if they violate bounds.
+3.  **LPSR (Linear Population Size Reduction)**: The population size linearly decreases from a high initial value to a minimum, ensuring global search at the beginning and fast convergence at the end.
+4.  **Robust Initialization**: Uses standard uniform initialization but calculates initial population size based on dimension `dim` (capped for performance) to ensure adequate coverage.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    L-SHADE with Linear Population Size Reduction (LPSR) and Vectorization.
+    
+    Optimized for high-dimensional and expensive black-box functions within a time limit.
+    """"""
+    # --- Configuration & Constants ---
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # Extract bounds
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    
+    # 1. Initialization Parameters
+    # Initial population size: 18 * dim is a strong baseline (L-SHADE literature)
+    # We cap it to prevent sluggishness in very high dimensions.
+    N_init = int(round(max(20, 18 * dim)))
+    if N_init > 200: 
+        N_init = 200
+    
+    N_min = 4
+    pop_size = N_init
+    
+    # Archive parameters
+    archive = [] # List of numpy arrays
+    arc_rate = 2.6
+    
+    # Memory for adaptive parameters (History length H=6)
+    H = 6
+    M_cr = np.full(H, 0.5)
+    M_f = np.full(H, 0.5)
+    k_mem = 0
+    
+    # --- Initial Population ---
+    pop = lb + np.random.rand(pop_size, dim) * (ub - lb)
+    fitness = np.full(pop_size, float('inf'))
+    
+    best_fitness = float('inf')
+    
+    # Evaluate Initial Population
+    # We perform a check inside the loop to ensure we don't timeout during init
+    for i in range(pop_size):
+        if (datetime.now() - start_time) >= limit:
+            return best_fitness
+            
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            
+    # --- Main Optimization Loop ---
+    while True:
+        # Time Check
+        elapsed = datetime.now() - start_time
+        if elapsed >= limit:
+            break
+            
+        # Calculate Progress (0.0 -> 1.0)
+        progress = elapsed.total_seconds() / max_time
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        # Calculate target population size
+        next_pop_size = int(round(((N_min - N_init) * progress) + N_init))
+        next_pop_size = max(N_min, next_pop_size)
+        
+        if pop_size > next_pop_size:
+            # Sort by fitness (best to worst)
+            sort_idx = np.argsort(fitness)
+            # Keep the top 'next_pop_size' individuals
+            keep_idx = sort_idx[:next_pop_size]
+            pop = pop[keep_idx]
+            fitness = fitness[keep_idx]
+            pop_size = next_pop_size
+            
+            # Reduce Archive Size accordingly
+            target_arc_size = int(pop_size * arc_rate)
+            if len(archive) > target_arc_size:
+                # Randomly remove excess
+                # Using shuffle is robust
+                random.shuffle(archive)
+                archive = archive[:target_arc_size]
+
+        # 2. Adaptive Parameter Generation (Vectorized)
+        # Pick random memory slot for each individual
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr = M_cr[r_idx]
+        m_f = M_f[r_idx]
+        
+        # Generate Crossover Rates (Cr) ~ Normal(M_cr, 0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0, 1)
+        
+        # Generate Mutation Factors (F) ~ Cauchy(M_f, 0.1)
+        # We need to handle F <= 0 (regenerate) and F > 1 (clip to 1)
+        f = np.zeros(pop_size)
+        todo_mask = np.ones(pop_size, dtype=bool)
+        
+        while np.any(todo_mask):
+            n_todo = np.sum(todo_mask)
+            # Cauchy generation: loc + scale * tan(pi * (rand - 0.5))
+            f_gen = m_f[todo_mask] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+            
+            # Valid F must be > 0
+            valid = f_gen > 0
+            
+            # Map valid results back to the main array
+            # Get indices of the rows we are currently fixing
+            curr_indices = np.where(todo_mask)[0]
+            good_indices = curr_indices[valid]
+            
+            f[good_indices] = f_gen[valid]
+            
+            # Update mask (disable rows that are now valid)
+            todo_mask[good_indices] = False
+            
+        f[f > 1] = 1.0
+        
+        # 3. Mutation Strategy: current-to-pbest/1
+        # V = X + F * (X_pbest - X) + F * (X_r1 - X_r2)
+        
+        # Sort population for p-best selection
+        sorted_indices = np.argsort(fitness)
+        
+        # p varies from 0.2 (exploration) to 2/N (exploitation) based on progress
+        p_val = max(2.0/pop_size, 0.2 * (1 - progress))
+        p_count = int(round(p_val * pop_size))
+        p_count = max(2, p_count)
+        
+        # Select p-best indices
+        pbest_pool = sorted_indices[:p_count]
+        pbest_idx = np.random.choice(pbest_pool, pop_size)
+        
+        # Select r1 (distinct from current i)
+        r1_idx = np.random.randint(0, pop_size, pop_size)
+        # Fix collisions (r1 == i)
+        confl = (r1_idx == np.arange(pop_size))
+        while np.any(confl):
+            r1_idx[confl] = np.random.randint(0, pop_size, np.sum(confl))
+            confl = (r1_idx == np.arange(pop_size))
+            
+        # Select r2 (distinct from i and r1, from Pop U Archive)
+        n_arc = len(archive)
+        if n_arc > 0:
+            # Create combined population for indexing
+            arr_arc = np.array(archive)
+            pop_all = np.vstack((pop, arr_arc))
+        else:
+            pop_all = pop
+            
+        n_all = len(pop_all)
+        r2_idx = np.random.randint(0, n_all, pop_size)
+        
+        # Fix collisions (r2 == i or r2 == r1)
+        # Note: i and r1 are indices in 'pop', r2 is index in 'pop_all'.
+        # We only check collision if r2 points to a member of 'pop' (i.e. < pop_size)
+        c1 = (r2_idx == np.arange(pop_size))
+        c2 = (r2_idx == r1_idx)
+        confl = c1 | c2
+        while np.any(confl):
+            r2_idx[confl] = np.random.randint(0, n_all, np.sum(confl))
+            c1 = (r2_idx == np.arange(pop_size))
+            c2 = (r2_idx == r1_idx)
+            confl = c1 | c2
+            
+        # Create Mutant Vectors
+        x = pop
+        x_pbest = pop[pbest_idx]
+        x_r1 = pop[r1_idx]
+        x_r2 = pop_all[r2_idx]
+        
+        f_v = f[:, None] # Reshape for broadcasting
+        mutant = x + f_v * (x_pbest - x) + f_v * (x_r1 - x_r2)
+        
+        # 4. Crossover (Binomial)
+        j_rand = np.random.randint(0, dim, pop_size)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, None]
+        # Ensure at least one dimension is taken from mutant
+        mask[np.arange(pop_size), j_rand] = True
+        
+        trial = np.where(mask, mutant, x)
+        
+        # 5. Bound Handling (Midpoint Correction)
+        # If out of bounds, place halfway between limit and previous position
+        # This preserves diversity better than clipping.
+        
+        # Lower bound violations
+        below = trial < lb
+        if np.any(below):
+            # We access lb via broadcasting or indexing. lb is (dim,)
+            # We need the specific column index for the correct lb value.
+            # np.where(below) returns (row_indices, col_indices)
+            cols = np.where(below)[1]
+            trial[below] = (lb[cols] + x[below]) / 2.0
+            
+        # Upper bound violations
+        above = trial > ub
+        if np.any(above):
+            cols = np.where(above)[1]
+            trial[above] = (ub[cols] + x[above]) / 2.0
+            
+        # Final clip to ensure precision errors don't leave us out of bounds
+        trial = np.clip(trial, lb, ub)
+        
+        # 6. Evaluation and Selection
+        trial_fitness = np.zeros(pop_size)
+        
+        # Loop for evaluation (func is black-box, usually not vectorized)
+        for i in range(pop_size):
+            # Check time periodically (every 10 evals) to ensure responsiveness
+            if (i % 10 == 0) and (datetime.now() - start_time) >= limit:
+                return best_fitness
+            
+            tf = func(trial[i])
+            trial_fitness[i] = tf
+            
+            if tf < best_fitness:
+                best_fitness = tf
+
+        # 7. Update Archive and Memory
+        # Identify improvements
+        imp = trial_fitness < fitness
+        
+        if np.any(imp):
+            # -- Archive Update --
+            # Add parents that are about to be replaced to the archive
+            old_parents = pop[imp]
+            for op in old_parents:
+                archive.append(op.copy())
+            
+            # Maintain Archive Size
+            curr_arc_limit = int(pop_size * arc_rate)
+            if len(archive) > curr_arc_limit:
+                # If significantly over, shuffle and slice
+                if len(archive) > curr_arc_limit + 50:
+                    random.shuffle(archive)
+                    archive = archive[:curr_arc_limit]
+                else:
+                    # Randomly remove elements until size is met
+                    while len(archive) > curr_arc_limit:
+                        idx = random.randint(0, len(archive)-1)
+                        archive.pop(idx)
+            
+            # -- Memory Update --
+            # Calculate fitness difference
+            diff = np.abs(fitness[imp] - trial_fitness[imp])
+            
+            # Normalize weights based on improvement magnitude
+            w = diff / np.sum(diff)
+            
+            s_f = f[imp]
+            s_cr = cr[imp]
+            
+            # Weighted Lehmer Mean for F
+            mean_f = np.sum(w * (s_f ** 2)) / np.sum(w * s_f)
+            
+            # Weighted Arithmetic Mean for Cr
+            mean_cr = np.sum(w * s_cr)
+            
+            # Update Memory (Ring Buffer)
+            M_f[k_mem] = mean_f
+            M_cr[k_mem] = mean_cr
+            k_mem = (k_mem + 1) % H
+            
+            # -- Population Update --
+            pop[imp] = trial[imp]
+            fitness[imp] = trial_fitness[imp]
+
+    return best_fitness
+```";;;a281afd1-6d2b-4370-9028-0609528a9be5;{}
+2026-02-13 01:14:28.986594+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 39.93344777454972
+
+ The last generated algorithm code:
+#Here is a fully operational, self-contained Python algorithm implementing **L-SHADE** (Linear Success-History based Adaptive Differential Evolution) with vectorized operations and Linear Population Size Reduction.
+#
+##### Improvement Logic
+#1.  **Vectorization**: The previous implementation used Python loops for mutation and crossover. This version uses NumPy vector operations to generate the entire population of trial vectors at once, significantly reducing overhead and increasing the number of evaluations per second.
+#2.  **Boundary Handling**: Instead of simple clipping (which reduces diversity at the edges), this implementation uses a ""midpoint bounce-back"" strategy (common in CEC competition winners like jSO), placing particles between the boundary and the previous position if they violate bounds.
+#3.  **LPSR (Linear Population Size Reduction)**: The population size linearly decreases from a high initial value to a minimum, ensuring global search at the beginning and fast convergence at the end.
+#4.  **Robust Initialization**: Uses standard uniform initialization but calculates initial population size based on dimension `dim` (capped for performance) to ensure adequate coverage.
+#
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    L-SHADE with Linear Population Size Reduction (LPSR) and Vectorization.
+    
+    Optimized for high-dimensional and expensive black-box functions within a time limit.
+    """"""
+    # --- Configuration & Constants ---
+    start_time = datetime.now()
+    limit = timedelta(seconds=max_time)
+    
+    # Extract bounds
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    
+    # 1. Initialization Parameters
+    # Initial population size: 18 * dim is a strong baseline (L-SHADE literature)
+    # We cap it to prevent sluggishness in very high dimensions.
+    N_init = int(round(max(20, 18 * dim)))
+    if N_init > 200: 
+        N_init = 200
+    
+    N_min = 4
+    pop_size = N_init
+    
+    # Archive parameters
+    archive = [] # List of numpy arrays
+    arc_rate = 2.6
+    
+    # Memory for adaptive parameters (History length H=6)
+    H = 6
+    M_cr = np.full(H, 0.5)
+    M_f = np.full(H, 0.5)
+    k_mem = 0
+    
+    # --- Initial Population ---
+    pop = lb + np.random.rand(pop_size, dim) * (ub - lb)
+    fitness = np.full(pop_size, float('inf'))
+    
+    best_fitness = float('inf')
+    
+    # Evaluate Initial Population
+    # We perform a check inside the loop to ensure we don't timeout during init
+    for i in range(pop_size):
+        if (datetime.now() - start_time) >= limit:
+            return best_fitness
+            
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            
+    # --- Main Optimization Loop ---
+    while True:
+        # Time Check
+        elapsed = datetime.now() - start_time
+        if elapsed >= limit:
+            break
+            
+        # Calculate Progress (0.0 -> 1.0)
+        progress = elapsed.total_seconds() / max_time
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        # Calculate target population size
+        next_pop_size = int(round(((N_min - N_init) * progress) + N_init))
+        next_pop_size = max(N_min, next_pop_size)
+        
+        if pop_size > next_pop_size:
+            # Sort by fitness (best to worst)
+            sort_idx = np.argsort(fitness)
+            # Keep the top 'next_pop_size' individuals
+            keep_idx = sort_idx[:next_pop_size]
+            pop = pop[keep_idx]
+            fitness = fitness[keep_idx]
+            pop_size = next_pop_size
+            
+            # Reduce Archive Size accordingly
+            target_arc_size = int(pop_size * arc_rate)
+            if len(archive) > target_arc_size:
+                # Randomly remove excess
+                # Using shuffle is robust
+                random.shuffle(archive)
+                archive = archive[:target_arc_size]
+
+        # 2. Adaptive Parameter Generation (Vectorized)
+        # Pick random memory slot for each individual
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr = M_cr[r_idx]
+        m_f = M_f[r_idx]
+        
+        # Generate Crossover Rates (Cr) ~ Normal(M_cr, 0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0, 1)
+        
+        # Generate Mutation Factors (F) ~ Cauchy(M_f, 0.1)
+        # We need to handle F <= 0 (regenerate) and F > 1 (clip to 1)
+        f = np.zeros(pop_size)
+        todo_mask = np.ones(pop_size, dtype=bool)
+        
+        while np.any(todo_mask):
+            n_todo = np.sum(todo_mask)
+            # Cauchy generation: loc + scale * tan(pi * (rand - 0.5))
+            f_gen = m_f[todo_mask] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+            
+            # Valid F must be > 0
+            valid = f_gen > 0
+            
+            # Map valid results back to the main array
+            # Get indices of the rows we are currently fixing
+            curr_indices = np.where(todo_mask)[0]
+            good_indices = curr_indices[valid]
+            
+            f[good_indices] = f_gen[valid]
+            
+            # Update mask (disable rows that are now valid)
+            todo_mask[good_indices] = False
+            
+        f[f > 1] = 1.0
+        
+        # 3. Mutation Strategy: current-to-pbest/1
+        # V = X + F * (X_pbest - X) + F * (X_r1 - X_r2)
+        
+        # Sort population for p-best selection
+        sorted_indices = np.argsort(fitness)
+        
+        # p varies from 0.2 (exploration) to 2/N (exploitation) based on progress
+        p_val = max(2.0/pop_size, 0.2 * (1 - progress))
+        p_count = int(round(p_val * pop_size))
+        p_count = max(2, p_count)
+        
+        # Select p-best indices
+        pbest_pool = sorted_indices[:p_count]
+        pbest_idx = np.random.choice(pbest_pool, pop_size)
+        
+        # Select r1 (distinct from current i)
+        r1_idx = np.random.randint(0, pop_size, pop_size)
+        # Fix collisions (r1 == i)
+        confl = (r1_idx == np.arange(pop_size))
+        while np.any(confl):
+            r1_idx[confl] = np.random.randint(0, pop_size, np.sum(confl))
+            confl = (r1_idx == np.arange(pop_size))
+            
+        # Select r2 (distinct from i and r1, from Pop U Archive)
+        n_arc = len(archive)
+        if n_arc > 0:
+            # Create combined population for indexing
+            arr_arc = np.array(archive)
+            pop_all = np.vstack((pop, arr_arc))
+        else:
+            pop_all = pop
+            
+        n_all = len(pop_all)
+        r2_idx = np.random.randint(0, n_all, pop_size)
+        
+        # Fix collisions (r2 == i or r2 == r1)
+        # Note: i and r1 are indices in 'pop', r2 is index in 'pop_all'.
+        # We only check collision if r2 points to a member of 'pop' (i.e. < pop_size)
+        c1 = (r2_idx == np.arange(pop_size))
+        c2 = (r2_idx == r1_idx)
+        confl = c1 | c2
+        while np.any(confl):
+            r2_idx[confl] = np.random.randint(0, n_all, np.sum(confl))
+            c1 = (r2_idx == np.arange(pop_size))
+            c2 = (r2_idx == r1_idx)
+            confl = c1 | c2
+            
+        # Create Mutant Vectors
+        x = pop
+        x_pbest = pop[pbest_idx]
+        x_r1 = pop[r1_idx]
+        x_r2 = pop_all[r2_idx]
+        
+        f_v = f[:, None] # Reshape for broadcasting
+        mutant = x + f_v * (x_pbest - x) + f_v * (x_r1 - x_r2)
+        
+        # 4. Crossover (Binomial)
+        j_rand = np.random.randint(0, dim, pop_size)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, None]
+        # Ensure at least one dimension is taken from mutant
+        mask[np.arange(pop_size), j_rand] = True
+        
+        trial = np.where(mask, mutant, x)
+        
+        # 5. Bound Handling (Midpoint Correction)
+        # If out of bounds, place halfway between limit and previous position
+        # This preserves diversity better than clipping.
+        
+        # Lower bound violations
+        below = trial < lb
+        if np.any(below):
+            # We access lb via broadcasting or indexing. lb is (dim,)
+            # We need the specific column index for the correct lb value.
+            # np.where(below) returns (row_indices, col_indices)
+            cols = np.where(below)[1]
+            trial[below] = (lb[cols] + x[below]) / 2.0
+            
+        # Upper bound violations
+        above = trial > ub
+        if np.any(above):
+            cols = np.where(above)[1]
+            trial[above] = (ub[cols] + x[above]) / 2.0
+            
+        # Final clip to ensure precision errors don't leave us out of bounds
+        trial = np.clip(trial, lb, ub)
+        
+        # 6. Evaluation and Selection
+        trial_fitness = np.zeros(pop_size)
+        
+        # Loop for evaluation (func is black-box, usually not vectorized)
+        for i in range(pop_size):
+            # Check time periodically (every 10 evals) to ensure responsiveness
+            if (i % 10 == 0) and (datetime.now() - start_time) >= limit:
+                return best_fitness
+            
+            tf = func(trial[i])
+            trial_fitness[i] = tf
+            
+            if tf < best_fitness:
+                best_fitness = tf
+
+        # 7. Update Archive and Memory
+        # Identify improvements
+        imp = trial_fitness < fitness
+        
+        if np.any(imp):
+            # -- Archive Update --
+            # Add parents that are about to be replaced to the archive
+            old_parents = pop[imp]
+            for op in old_parents:
+                archive.append(op.copy())
+            
+            # Maintain Archive Size
+            curr_arc_limit = int(pop_size * arc_rate)
+            if len(archive) > curr_arc_limit:
+                # If significantly over, shuffle and slice
+                if len(archive) > curr_arc_limit + 50:
+                    random.shuffle(archive)
+                    archive = archive[:curr_arc_limit]
+                else:
+                    # Randomly remove elements until size is met
+                    while len(archive) > curr_arc_limit:
+                        idx = random.randint(0, len(archive)-1)
+                        archive.pop(idx)
+            
+            # -- Memory Update --
+            # Calculate fitness difference
+            diff = np.abs(fitness[imp] - trial_fitness[imp])
+            
+            # Normalize weights based on improvement magnitude
+            w = diff / np.sum(diff)
+            
+            s_f = f[imp]
+            s_cr = cr[imp]
+            
+            # Weighted Lehmer Mean for F
+            mean_f = np.sum(w * (s_f ** 2)) / np.sum(w * s_f)
+            
+            # Weighted Arithmetic Mean for Cr
+            mean_cr = np.sum(w * s_cr)
+            
+            # Update Memory (Ring Buffer)
+            M_f[k_mem] = mean_f
+            M_cr[k_mem] = mean_cr
+            k_mem = (k_mem + 1) % H
+            
+            # -- Population Update --
+            pop[imp] = trial[imp]
+            fitness[imp] = trial_fitness[imp]
+
+    return best_fitness
+
+
+";;;597eb7d8-59d0-4c26-98b7-223a0892cfdb;{}
+2026-02-13 01:17:04.612929+00:00;21763;model;"Here is a fully operational, self-contained Python algorithm implementing **jSO (L-SHADE variant)** with adaptive resource allocation.
+
+### Improvement Logic
+1.  **Adaptive Budget Estimation**: Instead of assuming a fixed number of evaluations or relying purely on time checks, the algorithm estimates the total affordable evaluations (NFE) based on the first generation's execution time. This allows the linear schedules (for population reduction and parameter adaptation) to be perfectly scaled to the available time window.
+2.  **jSO Refinements**: Implements specific mechanisms from the jSO algorithm (a top-performing CEC winner), including:
+    *   **Weighted Lehmer Mean** for both $F$ and $Cr$ memory updates (biasing towards high-performance parameters).
+    *   **Dynamic $p$-best**: The top percentage $p$ for mutation selection decays linearly from 0.25 to 0.05, shifting focus from exploration to exploitation.
+    *   **Midpoint Bounce-Back**: A robust boundary handling technique that preserves diversity better than clipping.
+3.  **Linear Population Size Reduction (LPSR)**: The population size linearly decreases based on the consumed budget, ensuring broad search initially and efficient local convergence towards the end.
+4.  **Vectorized Operations**: Maximizes performance using NumPy vectorization for mutation, crossover, and constraint handling.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    jSO (L-SHADE variant) with Adaptive Budget Estimation and LPSR.
+    Optimized for minimizing black-box functions within a strict time limit.
+    """"""
+    # --- Configuration & Initialization ---
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    
+    # Initial Population Size
+    # Heuristic: 18 * dim is standard for L-SHADE, but we cap at 200 
+    # to ensure sufficient generations can run within limited time.
+    pop_size = int(round(18 * dim))
+    pop_size = max(10, min(pop_size, 200))
+    
+    # Initialize Population
+    pop = lb + np.random.rand(pop_size, dim) * (ub - lb)
+    fitness = np.full(pop_size, float('inf'))
+    
+    best_fitness = float('inf')
+    
+    # --- Step 1: Initial Evaluation & Budget Estimation ---
+    nfe = 0
+    t_start_eval = datetime.now()
+    
+    for i in range(pop_size):
+        # Safety check: if time runs out during initialization
+        if (datetime.now() - start_time) >= time_limit:
+            return best_fitness
+            
+        val = func(pop[i])
+        nfe += 1
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            
+    # Estimate total available NFE (Number of Function Evaluations)
+    # Based on time taken for the initial batch
+    elapsed_init = (datetime.now() - t_start_eval).total_seconds()
+    
+    if elapsed_init > 1e-6:
+        # Rate = evals / second. Projected NFE = Rate * max_time.
+        # We use a safety factor (0.95) to avoid timeout during the last generation.
+        est_total_nfe = int((nfe / elapsed_init) * max_time * 0.95)
+    else:
+        # Function is extremely fast; assume ample budget
+        est_total_nfe = 10**7
+        
+    # Ensure budget is at least enough for a few generations
+    max_nfe = max(est_total_nfe, nfe + 200)
+    
+    # --- jSO / L-SHADE Parameters ---
+    # Memory for adaptive parameters
+    H = 6 
+    M_cr = np.full(H, 0.8) # Starts high (0.8) for exploration
+    M_f = np.full(H, 0.5)  # Starts balanced (0.5)
+    k_mem = 0
+    archive = [] 
+    
+    # LPSR Configuration
+    n_init = pop_size
+    n_min = 4
+    
+    # --- Main Optimization Loop ---
+    while True:
+        # Time Check
+        if (datetime.now() - start_time) >= time_limit:
+            break
+            
+        # Calculate Progress (0.0 to 1.0)
+        progress = nfe / max_nfe
+        if progress > 1.0: progress = 1.0
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        target_size = int(round((n_min - n_init) * progress + n_init))
+        target_size = max(n_min, target_size)
+        
+        if pop_size > target_size:
+            # Sort population by fitness and truncate
+            sort_idx = np.argsort(fitness)
+            pop = pop[sort_idx[:target_size]]
+            fitness = fitness[sort_idx[:target_size]]
+            
+            # Resize Archive (Archive size = Population size)
+            if len(archive) > target_size:
+                random.shuffle(archive)
+                archive = archive[:target_size]
+                
+            pop_size = target_size
+            
+        # 2. Adaptive Parameter Generation
+        # p-best rate decays linearly from 0.25 to 0.05
+        p_curr = 0.25 - 0.20 * progress
+        
+        # Select memory slot
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr = M_cr[r_idx]
+        m_f = M_f[r_idx]
+        
+        # Generate Cr ~ Normal(M_cr, 0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0, 1)
+        
+        # Generate F ~ Cauchy(M_f, 0.1)
+        # Must be > 0. If > 1, clip to 1.
+        f = np.zeros(pop_size)
+        todo_mask = np.ones(pop_size, dtype=bool)
+        
+        while np.any(todo_mask):
+            n_todo = np.sum(todo_mask)
+            f_gen = m_f[todo_mask] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+            
+            valid = f_gen > 0
+            
+            # Indices to update
+            current_indices = np.where(todo_mask)[0]
+            valid_indices = current_indices[valid]
+            
+            f[valid_indices] = np.minimum(f_gen[valid], 1.0)
+            todo_mask[valid_indices] = False
+            
+        # 3. Mutation: current-to-pbest/1
+        # V = X + F * (X_pbest - X) + F * (X_r1 - X_r2)
+        
+        # Select p-best individuals
+        sorted_indices = np.argsort(fitness)
+        n_pbest = max(1, int(round(p_curr * pop_size)))
+        pbest_pool = sorted_indices[:n_pbest]
+        pbest_idx = np.random.choice(pbest_pool, pop_size)
+        
+        # Select r1 (distinct from i)
+        r1_idx = np.random.randint(0, pop_size, pop_size)
+        collision = r1_idx == np.arange(pop_size)
+        while np.any(collision):
+            r1_idx[collision] = np.random.randint(0, pop_size, np.sum(collision))
+            collision = r1_idx == np.arange(pop_size)
+            
+        # Select r2 (distinct from i and r1, from Pop U Archive)
+        if len(archive) > 0:
+            arr_arc = np.array(archive)
+            pop_all = np.vstack((pop, arr_arc))
+        else:
+            pop_all = pop
+            
+        n_all = len(pop_all)
+        r2_idx = np.random.randint(0, n_all, pop_size)
+        
+        # Collision handling for r2
+        c1 = r2_idx == np.arange(pop_size) # Collision with self (only if r2 points to pop)
+        c2 = r2_idx == r1_idx              # Collision with r1
+        collision = c1 | c2
+        while np.any(collision):
+            r2_idx[collision] = np.random.randint(0, n_all, np.sum(collision))
+            c1 = r2_idx == np.arange(pop_size)
+            c2 = r2_idx == r1_idx
+            collision = c1 | c2
+            
+        # Calculate Mutant Vectors
+        x = pop
+        x_pbest = pop[pbest_idx]
+        x_r1 = pop[r1_idx]
+        x_r2 = pop_all[r2_idx]
+        
+        v = x + f[:, None] * (x_pbest - x) + f[:, None] * (x_r1 - x_r2)
+        
+        # 4. Crossover (Binomial)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, None]
+        j_rand = np.random.randint(0, dim, pop_size)
+        mask[np.arange(pop_size), j_rand] = True # Ensure at least one parameter comes from mutant
+        
+        u = np.where(mask, v, x)
+        
+        # 5. Bound Handling (Midpoint Bounce-back)
+        # If out of bounds, place halfway between limit and old position
+        # Lower bounds
+        mask_l = u < lb
+        if np.any(mask_l):
+            rows, cols = np.where(mask_l)
+            u[rows, cols] = (lb[cols] + x[rows, cols]) / 2.0
+            
+        # Upper bounds
+        mask_u = u > ub
+        if np.any(mask_u):
+            rows, cols = np.where(mask_u)
+            u[rows, cols] = (ub[cols] + x[rows, cols]) / 2.0
+            
+        u = np.clip(u, lb, ub)
+        
+        # 6. Evaluation and Selection
+        new_fitness = np.zeros(pop_size)
+        
+        for i in range(pop_size):
+            # Periodically check time within generation to ensure responsiveness
+            if i % 20 == 0 and (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+            
+            val = func(u[i])
+            nfe += 1
+            new_fitness[i] = val
+            
+            if val < best_fitness:
+                best_fitness = val
+                
+        # 7. Update State
+        improved = new_fitness < fitness
+        
+        if np.any(improved):
+            # Update Archive with parents that are about to be replaced
+            parents_to_archive = pop[improved]
+            for p_vec in parents_to_archive:
+                archive.append(p_vec.copy())
+            
+            # Maintain Archive Size
+            while len(archive) > pop_size:
+                archive.pop(random.randint(0, len(archive)-1))
+                
+            # Update Memory (Weighted Lehmer Mean)
+            diff = np.abs(fitness[improved] - new_fitness[improved])
+            weights = diff / np.sum(diff)
+            
+            imp_f = f[improved]
+            imp_cr = cr[improved]
+            
+            # Update M_f
+            mean_f = np.sum(weights * (imp_f ** 2)) / np.sum(weights * imp_f)
+            M_f[k_mem] = mean_f
+            
+            # Update M_cr (jSO uses Weighted Lehmer for Cr as well)
+            if np.sum(weights * imp_cr) > 0:
+                mean_cr = np.sum(weights * (imp_cr ** 2)) / np.sum(weights * imp_cr)
+            else:
+                mean_cr = 0.0
+            M_cr[k_mem] = mean_cr
+            
+            k_mem = (k_mem + 1) % H
+            
+            # Update Population
+            pop[improved] = u[improved]
+            fitness[improved] = new_fitness[improved]
+
+    return best_fitness
+```";;;35a79824-0243-4b5e-a097-d12e77964bda;{}
+2026-02-13 01:32:04.849719+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 48.451155305930136
+
+ The last generated algorithm code:
+#Here is a fully operational, self-contained Python algorithm implementing **jSO (L-SHADE variant)** with adaptive resource allocation.
+#
+#### Improvement Logic
+#1.  **Adaptive Budget Estimation**: Instead of assuming a fixed number of evaluations or relying purely on time checks, the algorithm estimates the total affordable evaluations (NFE) based on the first generation's execution time. This allows the linear schedules (for population reduction and parameter adaptation) to be perfectly scaled to the available time window.
+#2.  **jSO Refinements**: Implements specific mechanisms from the jSO algorithm (a top-performing CEC winner), including:
+#    *   **Weighted Lehmer Mean** for both $F$ and $Cr$ memory updates (biasing towards high-performance parameters).
+#    *   **Dynamic $p$-best**: The top percentage $p$ for mutation selection decays linearly from 0.25 to 0.05, shifting focus from exploration to exploitation.
+#    *   **Midpoint Bounce-Back**: A robust boundary handling technique that preserves diversity better than clipping.
+#3.  **Linear Population Size Reduction (LPSR)**: The population size linearly decreases based on the consumed budget, ensuring broad search initially and efficient local convergence towards the end.
+#4.  **Vectorized Operations**: Maximizes performance using NumPy vectorization for mutation, crossover, and constraint handling.
+#
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    jSO (L-SHADE variant) with Adaptive Budget Estimation and LPSR.
+    Optimized for minimizing black-box functions within a strict time limit.
+    """"""
+    # --- Configuration & Initialization ---
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    
+    # Initial Population Size
+    # Heuristic: 18 * dim is standard for L-SHADE, but we cap at 200 
+    # to ensure sufficient generations can run within limited time.
+    pop_size = int(round(18 * dim))
+    pop_size = max(10, min(pop_size, 200))
+    
+    # Initialize Population
+    pop = lb + np.random.rand(pop_size, dim) * (ub - lb)
+    fitness = np.full(pop_size, float('inf'))
+    
+    best_fitness = float('inf')
+    
+    # --- Step 1: Initial Evaluation & Budget Estimation ---
+    nfe = 0
+    t_start_eval = datetime.now()
+    
+    for i in range(pop_size):
+        # Safety check: if time runs out during initialization
+        if (datetime.now() - start_time) >= time_limit:
+            return best_fitness
+            
+        val = func(pop[i])
+        nfe += 1
+        fitness[i] = val
+        if val < best_fitness:
+            best_fitness = val
+            
+    # Estimate total available NFE (Number of Function Evaluations)
+    # Based on time taken for the initial batch
+    elapsed_init = (datetime.now() - t_start_eval).total_seconds()
+    
+    if elapsed_init > 1e-6:
+        # Rate = evals / second. Projected NFE = Rate * max_time.
+        # We use a safety factor (0.95) to avoid timeout during the last generation.
+        est_total_nfe = int((nfe / elapsed_init) * max_time * 0.95)
+    else:
+        # Function is extremely fast; assume ample budget
+        est_total_nfe = 10**7
+        
+    # Ensure budget is at least enough for a few generations
+    max_nfe = max(est_total_nfe, nfe + 200)
+    
+    # --- jSO / L-SHADE Parameters ---
+    # Memory for adaptive parameters
+    H = 6 
+    M_cr = np.full(H, 0.8) # Starts high (0.8) for exploration
+    M_f = np.full(H, 0.5)  # Starts balanced (0.5)
+    k_mem = 0
+    archive = [] 
+    
+    # LPSR Configuration
+    n_init = pop_size
+    n_min = 4
+    
+    # --- Main Optimization Loop ---
+    while True:
+        # Time Check
+        if (datetime.now() - start_time) >= time_limit:
+            break
+            
+        # Calculate Progress (0.0 to 1.0)
+        progress = nfe / max_nfe
+        if progress > 1.0: progress = 1.0
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        target_size = int(round((n_min - n_init) * progress + n_init))
+        target_size = max(n_min, target_size)
+        
+        if pop_size > target_size:
+            # Sort population by fitness and truncate
+            sort_idx = np.argsort(fitness)
+            pop = pop[sort_idx[:target_size]]
+            fitness = fitness[sort_idx[:target_size]]
+            
+            # Resize Archive (Archive size = Population size)
+            if len(archive) > target_size:
+                random.shuffle(archive)
+                archive = archive[:target_size]
+                
+            pop_size = target_size
+            
+        # 2. Adaptive Parameter Generation
+        # p-best rate decays linearly from 0.25 to 0.05
+        p_curr = 0.25 - 0.20 * progress
+        
+        # Select memory slot
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr = M_cr[r_idx]
+        m_f = M_f[r_idx]
+        
+        # Generate Cr ~ Normal(M_cr, 0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0, 1)
+        
+        # Generate F ~ Cauchy(M_f, 0.1)
+        # Must be > 0. If > 1, clip to 1.
+        f = np.zeros(pop_size)
+        todo_mask = np.ones(pop_size, dtype=bool)
+        
+        while np.any(todo_mask):
+            n_todo = np.sum(todo_mask)
+            f_gen = m_f[todo_mask] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+            
+            valid = f_gen > 0
+            
+            # Indices to update
+            current_indices = np.where(todo_mask)[0]
+            valid_indices = current_indices[valid]
+            
+            f[valid_indices] = np.minimum(f_gen[valid], 1.0)
+            todo_mask[valid_indices] = False
+            
+        # 3. Mutation: current-to-pbest/1
+        # V = X + F * (X_pbest - X) + F * (X_r1 - X_r2)
+        
+        # Select p-best individuals
+        sorted_indices = np.argsort(fitness)
+        n_pbest = max(1, int(round(p_curr * pop_size)))
+        pbest_pool = sorted_indices[:n_pbest]
+        pbest_idx = np.random.choice(pbest_pool, pop_size)
+        
+        # Select r1 (distinct from i)
+        r1_idx = np.random.randint(0, pop_size, pop_size)
+        collision = r1_idx == np.arange(pop_size)
+        while np.any(collision):
+            r1_idx[collision] = np.random.randint(0, pop_size, np.sum(collision))
+            collision = r1_idx == np.arange(pop_size)
+            
+        # Select r2 (distinct from i and r1, from Pop U Archive)
+        if len(archive) > 0:
+            arr_arc = np.array(archive)
+            pop_all = np.vstack((pop, arr_arc))
+        else:
+            pop_all = pop
+            
+        n_all = len(pop_all)
+        r2_idx = np.random.randint(0, n_all, pop_size)
+        
+        # Collision handling for r2
+        c1 = r2_idx == np.arange(pop_size) # Collision with self (only if r2 points to pop)
+        c2 = r2_idx == r1_idx              # Collision with r1
+        collision = c1 | c2
+        while np.any(collision):
+            r2_idx[collision] = np.random.randint(0, n_all, np.sum(collision))
+            c1 = r2_idx == np.arange(pop_size)
+            c2 = r2_idx == r1_idx
+            collision = c1 | c2
+            
+        # Calculate Mutant Vectors
+        x = pop
+        x_pbest = pop[pbest_idx]
+        x_r1 = pop[r1_idx]
+        x_r2 = pop_all[r2_idx]
+        
+        v = x + f[:, None] * (x_pbest - x) + f[:, None] * (x_r1 - x_r2)
+        
+        # 4. Crossover (Binomial)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, None]
+        j_rand = np.random.randint(0, dim, pop_size)
+        mask[np.arange(pop_size), j_rand] = True # Ensure at least one parameter comes from mutant
+        
+        u = np.where(mask, v, x)
+        
+        # 5. Bound Handling (Midpoint Bounce-back)
+        # If out of bounds, place halfway between limit and old position
+        # Lower bounds
+        mask_l = u < lb
+        if np.any(mask_l):
+            rows, cols = np.where(mask_l)
+            u[rows, cols] = (lb[cols] + x[rows, cols]) / 2.0
+            
+        # Upper bounds
+        mask_u = u > ub
+        if np.any(mask_u):
+            rows, cols = np.where(mask_u)
+            u[rows, cols] = (ub[cols] + x[rows, cols]) / 2.0
+            
+        u = np.clip(u, lb, ub)
+        
+        # 6. Evaluation and Selection
+        new_fitness = np.zeros(pop_size)
+        
+        for i in range(pop_size):
+            # Periodically check time within generation to ensure responsiveness
+            if i % 20 == 0 and (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+            
+            val = func(u[i])
+            nfe += 1
+            new_fitness[i] = val
+            
+            if val < best_fitness:
+                best_fitness = val
+                
+        # 7. Update State
+        improved = new_fitness < fitness
+        
+        if np.any(improved):
+            # Update Archive with parents that are about to be replaced
+            parents_to_archive = pop[improved]
+            for p_vec in parents_to_archive:
+                archive.append(p_vec.copy())
+            
+            # Maintain Archive Size
+            while len(archive) > pop_size:
+                archive.pop(random.randint(0, len(archive)-1))
+                
+            # Update Memory (Weighted Lehmer Mean)
+            diff = np.abs(fitness[improved] - new_fitness[improved])
+            weights = diff / np.sum(diff)
+            
+            imp_f = f[improved]
+            imp_cr = cr[improved]
+            
+            # Update M_f
+            mean_f = np.sum(weights * (imp_f ** 2)) / np.sum(weights * imp_f)
+            M_f[k_mem] = mean_f
+            
+            # Update M_cr (jSO uses Weighted Lehmer for Cr as well)
+            if np.sum(weights * imp_cr) > 0:
+                mean_cr = np.sum(weights * (imp_cr ** 2)) / np.sum(weights * imp_cr)
+            else:
+                mean_cr = 0.0
+            M_cr[k_mem] = mean_cr
+            
+            k_mem = (k_mem + 1) % H
+            
+            # Update Population
+            pop[improved] = u[improved]
+            fitness[improved] = new_fitness[improved]
+
+    return best_fitness
+
+
+";;;82495dbf-7397-441c-b46e-341234ac9537;{}
+2026-02-13 01:34:08.633995+00:00;17644;model;"Here is a fully operational, self-contained Python algorithm implementing **Restart L-SHADE (L-SHADE-R)**.
+
+#### Improvement Logic
+1.  **Restart Mechanism**: The previous algorithm likely converged to a local optimum and stagnated. This version detects convergence (low population variance or small fitness range) and restarts the population while preserving the global best. This allows it to explore multiple basins of attraction within the time limit.
+2.  **Adaptive Budgeting per Epoch**: The algorithm estimates the cost of function evaluations and dynamically allocates a budget (Number of Function Evaluations - NFE) for each restart epoch.
+3.  **Linear Population Size Reduction (LPSR)**: Within each epoch, the population size linearly decays from a high initial value (for exploration) to a small minimum (for exploitation), driven by the epoch's NFE budget.
+4.  **Weighted Lehmer Mean**: Adaptive parameters ($F$ and $Cr$) are updated based on the magnitude of fitness improvements, prioritizing successful parameter values.
+5.  **Robust Bound Handling**: Uses ""Midpoint Bounce-Back"" to handle constraints, preserving population diversity better than simple clipping.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Restart L-SHADE (L-SHADE-R) Algorithm.
+    Features:
+    - Linear Population Size Reduction (LPSR)
+    - Success-History based Parameter Adaptation (L-SHADE)
+    - Automatic Restart upon stagnation or budget exhaustion
+    - Adaptive Time Budgeting
+    """"""
+    
+    # --- Configuration & Initialization ---
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    bound_diff = ub - lb
+    
+    # Global Best Tracking
+    best_fitness = float('inf')
+    
+    # --- Initial Estimation of Computational Cost ---
+    # Run a small batch to estimate 'func' execution time
+    n_est = 5
+    est_pop = lb + np.random.rand(n_est, dim) * bound_diff
+    t_start_est = datetime.now()
+    
+    for i in range(n_est):
+        if (datetime.now() - start_time) >= time_limit:
+            return best_fitness 
+        val = func(est_pop[i])
+        if val < best_fitness:
+            best_fitness = val
+            
+    elapsed = (datetime.now() - t_start_est).total_seconds()
+    
+    # Avg time per evaluation
+    if elapsed > 1e-6:
+        avg_eval_time = elapsed / n_est
+    else:
+        avg_eval_time = 0.0
+        
+    # --- Main Optimization Loop (Restarts) ---
+    while True:
+        # Check global timer
+        now = datetime.now()
+        if (now - start_time) >= time_limit:
+            break
+            
+        remaining_seconds = (start_time + time_limit - now).total_seconds()
+        if remaining_seconds <= 0:
+            break
+            
+        # 1. Budgeting for this Epoch
+        # Calculate max NFE we can afford in the remaining time
+        if avg_eval_time > 0:
+            est_nfe = int(remaining_seconds / avg_eval_time)
+            # Use 95% of estimated capacity to be safe against overhead
+            max_nfe_epoch = int(est_nfe * 0.95)
+        else:
+            max_nfe_epoch = 200000 # Default for extremely fast functions
+            
+        # If budget is too small for a meaningful run, attempt to run anyway 
+        # but expect timeout.
+        if max_nfe_epoch < dim * 10:
+            max_nfe_epoch = dim * 10
+            
+        # 2. L-SHADE Initialization
+        # Initial Pop Size: 18 * dim, clipped to reasonable limits
+        N_init = int(round(18 * dim))
+        N_init = max(10, min(N_init, 200))
+        
+        pop_size = N_init
+        pop = lb + np.random.rand(pop_size, dim) * bound_diff
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Evaluate Initial Population
+        current_nfe = 0
+        for i in range(pop_size):
+            if (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+            val = func(pop[i])
+            fitness[i] = val
+            current_nfe += 1
+            if val < best_fitness:
+                best_fitness = val
+                
+        # Algorithm State
+        H = 6 # Memory size
+        M_cr = np.full(H, 0.5)
+        M_f = np.full(H, 0.5)
+        k_mem = 0
+        archive = []
+        
+        N_min = 4 # Minimum population size
+        
+        # 3. Epoch Loop
+        while current_nfe < max_nfe_epoch:
+            # Check Time
+            if (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+            
+            # --- LPSR: Linear Population Size Reduction ---
+            progress = current_nfe / max_nfe_epoch
+            target_size = int(round((N_min - N_init) * progress + N_init))
+            target_size = max(N_min, target_size)
+            
+            # Reduce Population
+            if pop_size > target_size:
+                # Sort by fitness
+                sort_indices = np.argsort(fitness)
+                pop = pop[sort_indices[:target_size]]
+                fitness = fitness[sort_indices[:target_size]]
+                
+                # Resize Archive (maintain size <= pop_size)
+                if len(archive) > target_size:
+                    random.shuffle(archive)
+                    archive = archive[:target_size]
+                    
+                pop_size = target_size
+                
+            # Sort population for mutation strategies (best is at index 0)
+            sort_indices = np.argsort(fitness)
+            pop = pop[sort_indices]
+            fitness = fitness[sort_indices]
+            
+            # --- Stagnation Check ---
+            # If population converged, restart early to save time
+            if pop_size >= 4:
+                fitness_range = np.abs(fitness[-1] - fitness[0])
+                if fitness_range < 1e-8:
+                    break # Break to outer loop -> Restart
+            
+            # --- Parameter Adaptation ---
+            r_idx = np.random.randint(0, H, pop_size)
+            m_cr = M_cr[r_idx]
+            m_f = M_f[r_idx]
+            
+            # Cr ~ Normal(m_cr, 0.1)
+            cr = np.random.normal(m_cr, 0.1)
+            cr = np.clip(cr, 0, 1)
+            
+            # F ~ Cauchy(m_f, 0.1)
+            f = np.zeros(pop_size)
+            # Vectorized Cauchy with retry for <= 0
+            todo_mask = np.ones(pop_size, dtype=bool)
+            while np.any(todo_mask):
+                n_todo = np.sum(todo_mask)
+                f_gen = m_f[todo_mask] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+                valid = f_gen > 0
+                
+                # Map back
+                idxs = np.where(todo_mask)[0]
+                valid_idxs = idxs[valid]
+                f[valid_idxs] = np.minimum(f_gen[valid], 1.0)
+                todo_mask[valid_idxs] = False
+                
+            # --- Mutation: current-to-pbest/1 ---
+            # p-best selection (top p%)
+            p = 0.11 # Typical value for L-SHADE
+            p_num = max(1, int(round(p * pop_size)))
+            
+            # pbest indices
+            pbest_idxs = np.random.randint(0, p_num, pop_size)
+            x_pbest = pop[pbest_idxs]
+            
+            # r1 indices (r1 != i)
+            r1_idxs = np.random.randint(0, pop_size, pop_size)
+            conflict = r1_idxs == np.arange(pop_size)
+            while np.any(conflict):
+                r1_idxs[conflict] = np.random.randint(0, pop_size, np.sum(conflict))
+                conflict = r1_idxs == np.arange(pop_size)
+            x_r1 = pop[r1_idxs]
+            
+            # r2 indices (r2 != r1, r2 != i, from Pop U Archive)
+            if len(archive) > 0:
+                arc_arr = np.array(archive)
+                pop_all = np.vstack((pop, arc_arr))
+            else:
+                pop_all = pop
+            
+            n_all = len(pop_all)
+            r2_idxs = np.random.randint(0, n_all, pop_size)
+            
+            c1 = r2_idxs == np.arange(pop_size)
+            c2 = r2_idxs == r1_idxs
+            conflict = c1 | c2
+            while np.any(conflict):
+                r2_idxs[conflict] = np.random.randint(0, n_all, np.sum(conflict))
+                c1 = r2_idxs == np.arange(pop_size)
+                c2 = r2_idxs == r1_idxs
+                conflict = c1 | c2
+            x_r2 = pop_all[r2_idxs]
+            
+            # Calculate Mutant
+            v = pop + f[:, None] * (x_pbest - pop) + f[:, None] * (x_r1 - x_r2)
+            
+            # --- Crossover (Binomial) ---
+            j_rand = np.random.randint(0, dim, pop_size)
+            cross_mask = np.random.rand(pop_size, dim) < cr[:, None]
+            cross_mask[np.arange(pop_size), j_rand] = True
+            
+            u = np.where(cross_mask, v, pop)
+            
+            # --- Constraint Handling (Midpoint Bounce-Back) ---
+            mask_l = u < lb
+            if np.any(mask_l):
+                rows, cols = np.where(mask_l)
+                u[rows, cols] = (pop[rows, cols] + lb[cols]) / 2.0
+                
+            mask_u = u > ub
+            if np.any(mask_u):
+                rows, cols = np.where(mask_u)
+                u[rows, cols] = (pop[rows, cols] + ub[cols]) / 2.0
+            
+            u = np.clip(u, lb, ub)
+            
+            # --- Evaluation & Selection ---
+            new_fitness = np.zeros(pop_size)
+            
+            for i in range(pop_size):
+                if (datetime.now() - start_time) >= time_limit:
+                    return best_fitness
+                
+                val = func(u[i])
+                new_fitness[i] = val
+                current_nfe += 1
+                
+                if val < best_fitness:
+                    best_fitness = val
+            
+            # Determine Improvements
+            # pop/fitness are sorted, so indices match
+            better_mask = new_fitness < fitness
+            n_better = np.sum(better_mask)
+            
+            if n_better > 0:
+                # Update Archive
+                # Parents that are about to be replaced
+                replaced_parents = pop[better_mask]
+                for rp in replaced_parents:
+                    archive.append(rp.copy())
+                
+                # Maintain Archive Size
+                while len(archive) > pop_size:
+                    archive.pop(random.randint(0, len(archive)-1))
+                    
+                # Update Memory (Weighted Lehmer Mean)
+                diff = np.abs(fitness[better_mask] - new_fitness[better_mask])
+                total_diff = np.sum(diff)
+                
+                if total_diff > 0:
+                    weights = diff / total_diff
+                    
+                    # F update
+                    f_succ = f[better_mask]
+                    mean_f_wl = np.sum(weights * (f_succ ** 2)) / np.sum(weights * f_succ)
+                    M_f[k_mem] = mean_f_wl
+                    
+                    # Cr update
+                    cr_succ = cr[better_mask]
+                    if np.max(cr_succ) == 0:
+                        M_cr[k_mem] = 0
+                    else:
+                        denom = np.sum(weights * cr_succ)
+                        if denom > 0:
+                            mean_cr_wl = np.sum(weights * (cr_succ ** 2)) / denom
+                            M_cr[k_mem] = mean_cr_wl
+                        else:
+                            M_cr[k_mem] = 0.5
+                    
+                    k_mem = (k_mem + 1) % H
+                
+                # Update Population
+                pop[better_mask] = u[better_mask]
+                fitness[better_mask] = new_fitness[better_mask]
+                
+            # --- Loop End Check ---
+            if pop_size <= N_min:
+                break # Restart
+                
+    return best_fitness
+```";;;6c310d1f-1569-47a4-806d-12d44ea00fb5;{}
+2026-02-13 01:49:08.868725+00:00;0;user;"Improve.
+The output value of the last generated algorithm is: 30.167437377034304
+
+ The last generated algorithm code:
+#Here is a fully operational, self-contained Python algorithm implementing **Restart L-SHADE (L-SHADE-R)**.
+#
+##### Improvement Logic
+#1.  **Restart Mechanism**: The previous algorithm likely converged to a local optimum and stagnated. This version detects convergence (low population variance or small fitness range) and restarts the population while preserving the global best. This allows it to explore multiple basins of attraction within the time limit.
+#2.  **Adaptive Budgeting per Epoch**: The algorithm estimates the cost of function evaluations and dynamically allocates a budget (Number of Function Evaluations - NFE) for each restart epoch.
+#3.  **Linear Population Size Reduction (LPSR)**: Within each epoch, the population size linearly decays from a high initial value (for exploration) to a small minimum (for exploitation), driven by the epoch's NFE budget.
+#4.  **Weighted Lehmer Mean**: Adaptive parameters ($F$ and $Cr$) are updated based on the magnitude of fitness improvements, prioritizing successful parameter values.
+#5.  **Robust Bound Handling**: Uses ""Midpoint Bounce-Back"" to handle constraints, preserving population diversity better than simple clipping.
+#
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Restart L-SHADE (L-SHADE-R) Algorithm.
+    Features:
+    - Linear Population Size Reduction (LPSR)
+    - Success-History based Parameter Adaptation (L-SHADE)
+    - Automatic Restart upon stagnation or budget exhaustion
+    - Adaptive Time Budgeting
+    """"""
+    
+    # --- Configuration & Initialization ---
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    bounds = np.array(bounds)
+    lb = bounds[:, 0]
+    ub = bounds[:, 1]
+    bound_diff = ub - lb
+    
+    # Global Best Tracking
+    best_fitness = float('inf')
+    
+    # --- Initial Estimation of Computational Cost ---
+    # Run a small batch to estimate 'func' execution time
+    n_est = 5
+    est_pop = lb + np.random.rand(n_est, dim) * bound_diff
+    t_start_est = datetime.now()
+    
+    for i in range(n_est):
+        if (datetime.now() - start_time) >= time_limit:
+            return best_fitness 
+        val = func(est_pop[i])
+        if val < best_fitness:
+            best_fitness = val
+            
+    elapsed = (datetime.now() - t_start_est).total_seconds()
+    
+    # Avg time per evaluation
+    if elapsed > 1e-6:
+        avg_eval_time = elapsed / n_est
+    else:
+        avg_eval_time = 0.0
+        
+    # --- Main Optimization Loop (Restarts) ---
+    while True:
+        # Check global timer
+        now = datetime.now()
+        if (now - start_time) >= time_limit:
+            break
+            
+        remaining_seconds = (start_time + time_limit - now).total_seconds()
+        if remaining_seconds <= 0:
+            break
+            
+        # 1. Budgeting for this Epoch
+        # Calculate max NFE we can afford in the remaining time
+        if avg_eval_time > 0:
+            est_nfe = int(remaining_seconds / avg_eval_time)
+            # Use 95% of estimated capacity to be safe against overhead
+            max_nfe_epoch = int(est_nfe * 0.95)
+        else:
+            max_nfe_epoch = 200000 # Default for extremely fast functions
+            
+        # If budget is too small for a meaningful run, attempt to run anyway 
+        # but expect timeout.
+        if max_nfe_epoch < dim * 10:
+            max_nfe_epoch = dim * 10
+            
+        # 2. L-SHADE Initialization
+        # Initial Pop Size: 18 * dim, clipped to reasonable limits
+        N_init = int(round(18 * dim))
+        N_init = max(10, min(N_init, 200))
+        
+        pop_size = N_init
+        pop = lb + np.random.rand(pop_size, dim) * bound_diff
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Evaluate Initial Population
+        current_nfe = 0
+        for i in range(pop_size):
+            if (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+            val = func(pop[i])
+            fitness[i] = val
+            current_nfe += 1
+            if val < best_fitness:
+                best_fitness = val
+                
+        # Algorithm State
+        H = 6 # Memory size
+        M_cr = np.full(H, 0.5)
+        M_f = np.full(H, 0.5)
+        k_mem = 0
+        archive = []
+        
+        N_min = 4 # Minimum population size
+        
+        # 3. Epoch Loop
+        while current_nfe < max_nfe_epoch:
+            # Check Time
+            if (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+            
+            # --- LPSR: Linear Population Size Reduction ---
+            progress = current_nfe / max_nfe_epoch
+            target_size = int(round((N_min - N_init) * progress + N_init))
+            target_size = max(N_min, target_size)
+            
+            # Reduce Population
+            if pop_size > target_size:
+                # Sort by fitness
+                sort_indices = np.argsort(fitness)
+                pop = pop[sort_indices[:target_size]]
+                fitness = fitness[sort_indices[:target_size]]
+                
+                # Resize Archive (maintain size <= pop_size)
+                if len(archive) > target_size:
+                    random.shuffle(archive)
+                    archive = archive[:target_size]
+                    
+                pop_size = target_size
+                
+            # Sort population for mutation strategies (best is at index 0)
+            sort_indices = np.argsort(fitness)
+            pop = pop[sort_indices]
+            fitness = fitness[sort_indices]
+            
+            # --- Stagnation Check ---
+            # If population converged, restart early to save time
+            if pop_size >= 4:
+                fitness_range = np.abs(fitness[-1] - fitness[0])
+                if fitness_range < 1e-8:
+                    break # Break to outer loop -> Restart
+            
+            # --- Parameter Adaptation ---
+            r_idx = np.random.randint(0, H, pop_size)
+            m_cr = M_cr[r_idx]
+            m_f = M_f[r_idx]
+            
+            # Cr ~ Normal(m_cr, 0.1)
+            cr = np.random.normal(m_cr, 0.1)
+            cr = np.clip(cr, 0, 1)
+            
+            # F ~ Cauchy(m_f, 0.1)
+            f = np.zeros(pop_size)
+            # Vectorized Cauchy with retry for <= 0
+            todo_mask = np.ones(pop_size, dtype=bool)
+            while np.any(todo_mask):
+                n_todo = np.sum(todo_mask)
+                f_gen = m_f[todo_mask] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+                valid = f_gen > 0
+                
+                # Map back
+                idxs = np.where(todo_mask)[0]
+                valid_idxs = idxs[valid]
+                f[valid_idxs] = np.minimum(f_gen[valid], 1.0)
+                todo_mask[valid_idxs] = False
+                
+            # --- Mutation: current-to-pbest/1 ---
+            # p-best selection (top p%)
+            p = 0.11 # Typical value for L-SHADE
+            p_num = max(1, int(round(p * pop_size)))
+            
+            # pbest indices
+            pbest_idxs = np.random.randint(0, p_num, pop_size)
+            x_pbest = pop[pbest_idxs]
+            
+            # r1 indices (r1 != i)
+            r1_idxs = np.random.randint(0, pop_size, pop_size)
+            conflict = r1_idxs == np.arange(pop_size)
+            while np.any(conflict):
+                r1_idxs[conflict] = np.random.randint(0, pop_size, np.sum(conflict))
+                conflict = r1_idxs == np.arange(pop_size)
+            x_r1 = pop[r1_idxs]
+            
+            # r2 indices (r2 != r1, r2 != i, from Pop U Archive)
+            if len(archive) > 0:
+                arc_arr = np.array(archive)
+                pop_all = np.vstack((pop, arc_arr))
+            else:
+                pop_all = pop
+            
+            n_all = len(pop_all)
+            r2_idxs = np.random.randint(0, n_all, pop_size)
+            
+            c1 = r2_idxs == np.arange(pop_size)
+            c2 = r2_idxs == r1_idxs
+            conflict = c1 | c2
+            while np.any(conflict):
+                r2_idxs[conflict] = np.random.randint(0, n_all, np.sum(conflict))
+                c1 = r2_idxs == np.arange(pop_size)
+                c2 = r2_idxs == r1_idxs
+                conflict = c1 | c2
+            x_r2 = pop_all[r2_idxs]
+            
+            # Calculate Mutant
+            v = pop + f[:, None] * (x_pbest - pop) + f[:, None] * (x_r1 - x_r2)
+            
+            # --- Crossover (Binomial) ---
+            j_rand = np.random.randint(0, dim, pop_size)
+            cross_mask = np.random.rand(pop_size, dim) < cr[:, None]
+            cross_mask[np.arange(pop_size), j_rand] = True
+            
+            u = np.where(cross_mask, v, pop)
+            
+            # --- Constraint Handling (Midpoint Bounce-Back) ---
+            mask_l = u < lb
+            if np.any(mask_l):
+                rows, cols = np.where(mask_l)
+                u[rows, cols] = (pop[rows, cols] + lb[cols]) / 2.0
+                
+            mask_u = u > ub
+            if np.any(mask_u):
+                rows, cols = np.where(mask_u)
+                u[rows, cols] = (pop[rows, cols] + ub[cols]) / 2.0
+            
+            u = np.clip(u, lb, ub)
+            
+            # --- Evaluation & Selection ---
+            new_fitness = np.zeros(pop_size)
+            
+            for i in range(pop_size):
+                if (datetime.now() - start_time) >= time_limit:
+                    return best_fitness
+                
+                val = func(u[i])
+                new_fitness[i] = val
+                current_nfe += 1
+                
+                if val < best_fitness:
+                    best_fitness = val
+            
+            # Determine Improvements
+            # pop/fitness are sorted, so indices match
+            better_mask = new_fitness < fitness
+            n_better = np.sum(better_mask)
+            
+            if n_better > 0:
+                # Update Archive
+                # Parents that are about to be replaced
+                replaced_parents = pop[better_mask]
+                for rp in replaced_parents:
+                    archive.append(rp.copy())
+                
+                # Maintain Archive Size
+                while len(archive) > pop_size:
+                    archive.pop(random.randint(0, len(archive)-1))
+                    
+                # Update Memory (Weighted Lehmer Mean)
+                diff = np.abs(fitness[better_mask] - new_fitness[better_mask])
+                total_diff = np.sum(diff)
+                
+                if total_diff > 0:
+                    weights = diff / total_diff
+                    
+                    # F update
+                    f_succ = f[better_mask]
+                    mean_f_wl = np.sum(weights * (f_succ ** 2)) / np.sum(weights * f_succ)
+                    M_f[k_mem] = mean_f_wl
+                    
+                    # Cr update
+                    cr_succ = cr[better_mask]
+                    if np.max(cr_succ) == 0:
+                        M_cr[k_mem] = 0
+                    else:
+                        denom = np.sum(weights * cr_succ)
+                        if denom > 0:
+                            mean_cr_wl = np.sum(weights * (cr_succ ** 2)) / denom
+                            M_cr[k_mem] = mean_cr_wl
+                        else:
+                            M_cr[k_mem] = 0.5
+                    
+                    k_mem = (k_mem + 1) % H
+                
+                # Update Population
+                pop[better_mask] = u[better_mask]
+                fitness[better_mask] = new_fitness[better_mask]
+                
+            # --- Loop End Check ---
+            if pop_size <= N_min:
+                break # Restart
+                
+    return best_fitness
+
+
+";;;b9996847-e9f2-4126-b8ae-9b9985dc2bde;{}
+2026-02-13 01:51:45.416008+00:00;20520;model;"Here is the fully operational, self-contained Python algorithm.
+
+It implements **Restart L-SHADE with Local Search (L-SHADE-R-LS)**. This algorithm combines the global search power of L-SHADE (with Linear Population Size Reduction and Adaptive Parameters) with a deterministic **Coordinate Descent Local Search** to refine the best solution found, and a **Biased Restart** strategy to efficiently explore the landscape within the time limit.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+import random
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Restart L-SHADE with Local Search (L-SHADE-R-LS)
+    
+    Features:
+    1. L-SHADE: State-of-the-art Differential Evolution with:
+       - Linear Population Size Reduction (LPSR)
+       - Success-History based Parameter Adaptation
+       - External Archive
+    2. Biased Restart: Re-initializes population with a mix of global random points 
+       and a Gaussian cloud around the best-so-far solution to escape local optima 
+       while exploiting the current basin.
+    3. Coordinate Descent Local Search: Runs upon convergence to fine-tune the solution.
+    4. Robust Time Management: Adapts budget dynamically.
+    """"""
+    
+    # --- Configuration ---
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    # Bound processing
+    bounds_np = np.array(bounds)
+    lb = bounds_np[:, 0]
+    ub = bounds_np[:, 1]
+    bound_diff = ub - lb
+    
+    # Global Best Tracking
+    best_fitness = float('inf')
+    best_x = None
+    
+    # --- Helper: Time Check & Safe Evaluation ---
+    def check_timeout():
+        return (datetime.now() - start_time) >= time_limit
+
+    class TimeoutException(Exception):
+        pass
+
+    def safe_evaluate(x):
+        nonlocal best_fitness, best_x
+        if check_timeout():
+            raise TimeoutException
+        
+        val = func(x)
+        
+        if val < best_fitness:
+            best_fitness = val
+            best_x = x.copy()
+        return val
+
+    # --- Initial Cost Estimation ---
+    # Run a small batch to estimate function evaluation time
+    n_est = 5
+    t_start_est = datetime.now()
+    try:
+        for _ in range(n_est):
+            rnd_x = lb + np.random.rand(dim) * bound_diff
+            safe_evaluate(rnd_x)
+    except TimeoutException:
+        return best_fitness
+
+    elapsed = (datetime.now() - t_start_est).total_seconds()
+    avg_eval_time = elapsed / n_est if elapsed > 1e-6 else 0.0
+
+    # --- L-SHADE Parameters ---
+    # Initial Population Size: 18 * dim (standard for L-SHADE), clipped for safety
+    N_init = int(round(18 * dim))
+    N_init = max(30, min(N_init, 300))
+    N_min = 4
+    
+    # History Memory Size
+    H = 5
+    
+    # Loop Counters
+    nfe_total = n_est
+    restart_count = 0
+    
+    # --- Main Optimization Loop (Restarts) ---
+    while True:
+        # Check remaining time
+        now = datetime.now()
+        remaining_seconds = (start_time + time_limit - now).total_seconds()
+        if remaining_seconds <= 0:
+            break
+            
+        # 1. Budgeting for this Epoch
+        if avg_eval_time > 0:
+            est_capacity = int(remaining_seconds / avg_eval_time)
+        else:
+            est_capacity = 1000000 # Large dummy value
+            
+        # Allocate budget: 
+        # If it's the first run, assume we might need restarts -> don't use 100% capacity for LPSR scale.
+        # Use a heuristic: max(500*dim, 60% of remaining) to allow for restarts.
+        epoch_nfe_budget = max(int(500 * dim), int(est_capacity * 0.6))
+        
+        # 2. Initialization
+        pop_size = N_init
+        pop = np.zeros((pop_size, dim))
+        
+        # Biased Initialization Logic (Exploit + Explore)
+        # If we have a good solution, seed 30% of new pop around it
+        n_biased = 0
+        if restart_count > 0 and best_x is not None:
+            n_biased = int(0.3 * pop_size)
+            # Sigma: 5% of domain width for local cloud
+            sigma = 0.05 * bound_diff
+            bias_cloud = np.random.normal(best_x, sigma, (n_biased, dim))
+            bias_cloud = np.clip(bias_cloud, lb, ub)
+            pop[:n_biased] = bias_cloud
+            
+        n_rand = pop_size - n_biased
+        pop[n_biased:] = lb + np.random.rand(n_rand, dim) * bound_diff
+        
+        fitness = np.zeros(pop_size)
+        try:
+            for i in range(pop_size):
+                fitness[i] = safe_evaluate(pop[i])
+                nfe_total += 1
+        except TimeoutException:
+            return best_fitness
+            
+        # Sort population
+        sort_idx = np.argsort(fitness)
+        pop = pop[sort_idx]
+        fitness = fitness[sort_idx]
+        
+        # L-SHADE State
+        M_cr = np.full(H, 0.5)
+        M_f = np.full(H, 0.5)
+        k_mem = 0
+        archive = []
+        
+        nfe_epoch_start = nfe_total
+        
+        # 3. Evolution Loop
+        while (nfe_total - nfe_epoch_start) < epoch_nfe_budget:
+            if check_timeout(): return best_fitness
+            
+            # --- Linear Population Size Reduction (LPSR) ---
+            progress = (nfe_total - nfe_epoch_start) / epoch_nfe_budget
+            target_size = int(round((N_min - N_init) * progress + N_init))
+            target_size = max(N_min, target_size)
+            
+            if pop_size > target_size:
+                # Truncate lowest fitness (pop is sorted at end of loop)
+                pop = pop[:target_size]
+                fitness = fitness[:target_size]
+                pop_size = target_size
+                # Reduce archive
+                if len(archive) > pop_size:
+                    random.shuffle(archive)
+                    archive = archive[:pop_size]
+            
+            # --- Parameter Adaptation ---
+            r_idxs = np.random.randint(0, H, pop_size)
+            m_cr = M_cr[r_idxs]
+            m_f = M_f[r_idxs]
+            
+            # Generate Cr (Normal)
+            cr = np.random.normal(m_cr, 0.1)
+            cr = np.clip(cr, 0, 1)
+            
+            # Generate F (Cauchy)
+            f = np.zeros(pop_size)
+            # Vectorized rejection sampling for Cauchy > 0
+            todo_mask = np.ones(pop_size, dtype=bool)
+            while np.any(todo_mask):
+                n_todo = np.sum(todo_mask)
+                f_gen = m_f[r_idxs[todo_mask]] + 0.1 * np.tan(np.pi * (np.random.rand(n_todo) - 0.5))
+                valid = f_gen > 0
+                
+                # Update valid entries
+                indices = np.where(todo_mask)[0]
+                valid_indices = indices[valid]
+                f[valid_indices] = np.minimum(f_gen[valid], 1.0)
+                todo_mask[valid_indices] = False
+            
+            # --- Mutation: current-to-pbest/1 ---
+            # Sort for p-best selection
+            sorted_indices = np.argsort(fitness)
+            pop = pop[sorted_indices]
+            fitness = fitness[sorted_indices]
+            
+            # p-best selection (top 11%)
+            p_val = 0.11
+            p_num = max(1, int(round(p_val * pop_size)))
+            pbest_idxs = np.random.randint(0, p_num, pop_size)
+            x_pbest = pop[pbest_idxs]
+            
+            # r1 selection (r1 != i)
+            r1_idxs = np.random.randint(0, pop_size, pop_size)
+            conflict = r1_idxs == np.arange(pop_size)
+            while np.any(conflict):
+                r1_idxs[conflict] = np.random.randint(0, pop_size, np.sum(conflict))
+                conflict = r1_idxs == np.arange(pop_size)
+            x_r1 = pop[r1_idxs]
+            
+            # r2 selection (r2 != r1, r2 != i, from Pop U Archive)
+            if len(archive) > 0:
+                pop_union = np.vstack((pop, np.array(archive)))
+            else:
+                pop_union = pop
+            
+            n_union = len(pop_union)
+            r2_idxs = np.random.randint(0, n_union, pop_size)
+            conflict = (r2_idxs == np.arange(pop_size)) | (r2_idxs == r1_idxs)
+            while np.any(conflict):
+                r2_idxs[conflict] = np.random.randint(0, n_union, np.sum(conflict))
+                conflict = (r2_idxs == np.arange(pop_size)) | (r2_idxs == r1_idxs)
+            x_r2 = pop_union[r2_idxs]
+            
+            # Compute Mutant V
+            v = pop + f[:, None] * (x_pbest - pop) + f[:, None] * (x_r1 - x_r2)
+            
+            # --- Crossover (Binomial) ---
+            mask = np.random.rand(pop_size, dim) < cr[:, None]
+            j_rand = np.random.randint(0, dim, pop_size)
+            mask[np.arange(pop_size), j_rand] = True
+            
+            u = np.where(mask, v, pop)
+            
+            # --- Bound Handling (Midpoint Bounce-Back) ---
+            # Better than clipping for diversity
+            mask_l = u < lb
+            if np.any(mask_l):
+                r, c = np.where(mask_l)
+                u[r, c] = (pop[r, c] + lb[c]) / 2.0
+            mask_u = u > ub
+            if np.any(mask_u):
+                r, c = np.where(mask_u)
+                u[r, c] = (pop[r, c] + ub[c]) / 2.0
+            
+            u = np.clip(u, lb, ub)
+            
+            # --- Evaluation ---
+            new_fitness = np.zeros(pop_size)
+            try:
+                for i in range(pop_size):
+                    new_fitness[i] = safe_evaluate(u[i])
+                    nfe_total += 1
+            except TimeoutException:
+                return best_fitness
+            
+            # --- Selection & Update ---
+            # Selection for next generation (u <= x)
+            selection_mask = new_fitness <= fitness
+            
+            # Archive update: strictly better children push parent to archive
+            archive_mask = new_fitness < fitness
+            if np.any(archive_mask):
+                parents_to_archive = pop[archive_mask].copy()
+                for p_vec in parents_to_archive:
+                    archive.append(p_vec)
+                # Resize archive
+                while len(archive) > pop_size:
+                    archive.pop(random.randint(0, len(archive)-1))
+                    
+                # Update Memory (Weighted Lehmer Mean)
+                diffs = np.abs(fitness[archive_mask] - new_fitness[archive_mask])
+                total_diff = np.sum(diffs)
+                if total_diff > 0:
+                    weights = diffs / total_diff
+                    
+                    # F Update
+                    succ_f = f[archive_mask]
+                    mean_f_wl = np.sum(weights * (succ_f**2)) / np.sum(weights * succ_f)
+                    M_f[k_mem] = mean_f_wl
+                    
+                    # Cr Update
+                    succ_cr = cr[archive_mask]
+                    if np.max(succ_cr) == 0:
+                        M_cr[k_mem] = 0
+                    else:
+                        denom = np.sum(weights * succ_cr)
+                        if denom > 0:
+                            M_cr[k_mem] = np.sum(weights * (succ_cr**2)) / denom
+                        else:
+                            M_cr[k_mem] = 0.5
+                            
+                    k_mem = (k_mem + 1) % H
+            
+            # Apply Selection
+            pop[selection_mask] = u[selection_mask]
+            fitness[selection_mask] = new_fitness[selection_mask]
+            
+            # Check for Convergence
+            # 1. Population too small
+            if pop_size <= N_min:
+                break
+            # 2. Fitness converged
+            if abs(np.max(fitness) - np.min(fitness)) < 1e-8:
+                break
+        
+        # --- Local Search (Coordinate Descent) ---
+        # Run on the best solution found to refine results before restart
+        if best_x is not None:
+            # Simple coordinate descent
+            # Initial step size
+            step_size = (ub - lb) * 0.01 
+            # Max 3 passes to save time
+            try:
+                for _ in range(3):
+                    improved_ls = False
+                    for d in range(dim):
+                        if check_timeout(): raise TimeoutException
+                        
+                        origin = best_x[d]
+                        curr_best = best_fitness
+                        
+                        # Try negative direction
+                        target = max(lb[d], origin - step_size[d])
+                        temp_x = best_x.copy()
+                        temp_x[d] = target
+                        val = safe_evaluate(temp_x)
+                        
+                        if val < curr_best:
+                            improved_ls = True
+                            continue 
+                        
+                        # Try positive direction
+                        target = min(ub[d], origin + step_size[d])
+                        temp_x = best_x.copy() # Reset using latest best_x
+                        temp_x[d] = target
+                        val = safe_evaluate(temp_x)
+                        
+                        if val < curr_best:
+                            improved_ls = True
+                    
+                    if not improved_ls:
+                        step_size /= 2.0 # Refine step
+                    if np.max(step_size) < 1e-9:
+                        break
+            except TimeoutException:
+                return best_fitness
+
+        restart_count += 1
+        
+    return best_fitness
+```";;;9889dc93-08d9-459d-abaa-f4e36dfdaed2;{}

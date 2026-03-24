@@ -1,0 +1,23 @@
+\begin{table}[ht]
+\centering
+\caption{Token usage (mean ± standard deviation) across models and subsets}
+\label{tab:token_stats}
+\begin{tabular}{lccc}
+\toprule
+Subset & gemini & gpt & opus \\
+\midrule
+nocontext\_ & 52146 ± 3799 & 13846 ± 701 & 23786 ± 3248 \\
+nocontext\_best & 106715 ± 7616 & 32362 ± 2577 & 44751 ± 11318 \\
+last\_ & 132800 ± 7034 & 32059 ± 2684 & 43175 ± 6493 \\
+last\_best & 158560 ± 10652 & 34931 ± 3751 & 35799 ± 10327 \\
+last\_3best & 176802 ± 19841 & 35490 ± 2470 & 26241 ± 4109 \\
+nocontext\_3best & 185477 ± 36670 & 34882 ± 3430 & 32170 ± 7578 \\
+3last\_ & 184038 ± 9440 & 36368 ± 4622 & 35983 ± 1779 \\
+3last\_best & 218495 ± 33124 & 35358 ± 4808 & 28942 ± 3801 \\
+all\_best & 232371 ± 23218 & 35869 ± 6415 & 23361 ± 2393 \\
+all\_ & 235505 ± 4047 & 33125 ± 5987 & 44449 ± 9964 \\
+3last\_3best & 252371 ± 15489 & 37523 ± 2574 & 27483 ± 4191 \\
+all\_3best & 271636 ± 23937 & 39561 ± 6289 & 31727 ± 5022 \\
+\bottomrule
+\end{tabular}
+\end{table}

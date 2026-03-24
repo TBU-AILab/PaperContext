@@ -1,0 +1,11 @@
+,pcontext_sol_0,pcontext_sol_1,pcontext_sol_2,pcontext_sol_3,pcontext_sol_4,pcontext_sol_5,pcontext_sol_6,pcontext_sol_7,pcontext_sol_8,pcontext_sol_9
+pcontext_sol_0,0,1,1,1,0,-1,0,-1,-1,-1
+pcontext_sol_1,-1,0,0,0,-1,-1,-1,-1,-1,-1
+pcontext_sol_2,-1,0,0,0,-1,-1,-1,-1,-1,-1
+pcontext_sol_3,-1,0,0,0,-1,-1,-1,-1,-1,-1
+pcontext_sol_4,0,1,1,1,0,-1,1,-1,-1,-1
+pcontext_sol_5,1,1,1,1,1,0,1,-1,-1,-1
+pcontext_sol_6,0,1,1,1,-1,-1,0,-1,-1,-1
+pcontext_sol_7,1,1,1,1,1,1,1,0,-1,-1
+pcontext_sol_8,1,1,1,1,1,1,1,1,0,1
+pcontext_sol_9,1,1,1,1,1,1,1,1,-1,0

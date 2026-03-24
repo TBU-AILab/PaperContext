@@ -1,0 +1,1966 @@
+time;tokens;role;text;path_solution_file;path_solution_metadata;id;metadata
+2026-03-13 08:36:03.991478+00:00;0;system;"Your task is to propose an algorithm to find a set of input parameter values that lead to minimum output value in a limited time. The template for the algorithm is given below. Deliver Python code that is fully operational and self-contained, requiring no external libraries or modifications post-delivery
+
+Glossary:
+func - function that returns output value (float) for an array of input parameter values (np.array).
+dim - (int) dimension of the input vector.
+bounds - (list) specified lower and upper bounds for the input vector values. A pair for each dimension.
+max_time - (int) maximum acceptable time in seconds to return a result.
+
+Template:
+
+def run(func, dim, bounds, max_time):
+
+    [Algorithm body]
+
+    # return fitness of the best found solution
+    return best
+
+Example implementation of a random search algorithm in the given template:
+
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+
+    # Algorithm body
+    while True:
+        passed_time = (datetime.now() - start)
+        if passed_time >= timedelta(seconds=max_time):
+            return best
+
+        params = [np.random.uniform(low, high) for low, high in bounds]
+        fitness = func(params)
+        if best is None or fitness <= best:
+            best = fitness
+        ";;;f717e448-75f1-448d-a683-f951b615950f;{}
+2026-03-13 08:36:03.992014+00:00;0;user;----;;;1f696bd5-4e70-410f-9721-0c3f7d5db1b9;{}
+2026-03-13 08:36:34.718884+00:00;1706;assistant;"```python
+import random
+import math
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a simple, self-contained hybrid:
+    - Sobol-like low-discrepancy sequence (Halton) for broad coverage (no numpy)
+    - Local adaptive coordinate search around the current best
+    - Occasional random restarts
+
+    Parameters
+    ----------
+    func : callable
+        func(x) -> float, where x is a list/array of length dim
+    dim : int
+        dimensionality
+    bounds : list of (low, high)
+        bounds per dimension
+    max_time : int or float
+        max runtime in seconds
+
+    Returns
+    -------
+    best : float
+        best (minimum) objective value found
+    """"""
+
+    # --------- helpers (no external libs) ----------
+    def clamp(x):
+        y = []
+        for i in range(dim):
+            lo, hi = bounds[i]
+            v = x[i]
+            if v < lo: v = lo
+            if v > hi: v = hi
+            y.append(v)
+        return y
+
+    def rand_point():
+        return [random.uniform(bounds[i][0], bounds[i][1]) for i in range(dim)]
+
+    def reflect_bounds(x):
+        # Reflect step overshoots (often better than clamp for local moves)
+        y = x[:]
+        for i in range(dim):
+            lo, hi = bounds[i]
+            v = y[i]
+            if hi <= lo:
+                y[i] = lo
+                continue
+            # reflect repeatedly if far out
+            span = hi - lo
+            while v < lo or v > hi:
+                if v < lo:
+                    v = lo + (lo - v)
+                if v > hi:
+                    v = hi - (v - hi)
+            # numerical safety
+            if v < lo: v = lo
+            if v > hi: v = hi
+            y[i] = v
+        return y
+
+    def halton_value(index, base):
+        # radical inverse in base
+        f = 1.0
+        r = 0.0
+        i = index
+        while i > 0:
+            f /= base
+            r += f * (i % base)
+            i //= base
+        return r
+
+    def first_primes(n):
+        primes = []
+        candidate = 2
+        while len(primes) < n:
+            is_p = True
+            limit = int(math.isqrt(candidate))
+            for p in primes:
+                if p > limit:
+                    break
+                if candidate % p == 0:
+                    is_p = False
+                    break
+            if is_p:
+                primes.append(candidate)
+            candidate += 1
+        return primes
+
+    # --------- initialization ----------
+    start = time.time()
+    deadline = start + float(max_time)
+
+    primes = first_primes(dim)
+    # Start with a random point to avoid any pathological alignment
+    best_x = rand_point()
+    try:
+        best = float(func(best_x))
+    except Exception:
+        # if func fails on some points, keep searching
+        best = float(""inf"")
+
+    # step sizes as fraction of range
+    ranges = [bounds[i][1] - bounds[i][0] for i in range(dim)]
+    base_steps = [0.25 * (r if r > 0 else 1.0) for r in ranges]
+    steps = base_steps[:]
+
+    # bookkeeping
+    halton_index = 1
+    it = 0
+
+    # --------- main loop ----------
+    while time.time() < deadline:
+        it += 1
+        now = time.time()
+        remaining = deadline - now
+
+        # Phase selection: more global early, more local later
+        # Use remaining time to bias behavior
+        frac_left = remaining / (float(max_time) + 1e-12)
+
+        # Occasionally do a (quasi) global sample
+        do_global = (it % 7 == 0) or (frac_left > 0.6 and it % 2 == 0) or (random.random() < 0.05)
+
+        if do_global:
+            # Halton sample mapped to bounds
+            u = [halton_value(halton_index, primes[i]) for i in range(dim)]
+            halton_index += 1
+            x = [bounds[i][0] + u[i] * (bounds[i][1] - bounds[i][0]) for i in range(dim)]
+
+            # small jitter to avoid strict determinism / function discontinuities
+            for i in range(dim):
+                span = ranges[i] if ranges[i] > 0 else 1.0
+                x[i] += (random.random() - 0.5) * 0.01 * span
+            x = reflect_bounds(x)
+
+            try:
+                fx = float(func(x))
+                if fx < best:
+                    best = fx
+                    best_x = x
+                    # reset steps when improvement found
+                    steps = [max(1e-12, s * 0.9) for s in steps]
+            except Exception:
+                pass
+            continue
+
+        # Local search: adaptive coordinate exploration around best_x
+        i = random.randrange(dim)
+        step = steps[i]
+
+        # If step becomes too small, restart steps or do random restart
+        span_i = ranges[i] if ranges[i] > 0 else 1.0
+        min_step = 1e-9 * span_i + 1e-12
+
+        if step < min_step:
+            # random restart around the best or global restart
+            if random.random() < 0.5:
+                # broaden search around best
+                steps = [max(bs, 0.05 * (r if r > 0 else 1.0)) for bs, r in zip(base_steps, ranges)]
+            else:
+                # full restart
+                x = rand_point()
+                try:
+                    fx = float(func(x))
+                    if fx < best:
+                        best = fx
+                        best_x = x
+                        steps = base_steps[:]
+                except Exception:
+                    pass
+            continue
+
+        # Try plus/minus moves on one coordinate, and accept best improvement
+        x_plus = best_x[:]
+        x_minus = best_x[:]
+        x_plus[i] += step
+        x_minus[i] -= step
+        x_plus = reflect_bounds(x_plus)
+        x_minus = reflect_bounds(x_minus)
+
+        improved = False
+        best_candidate_x = None
+        best_candidate_f = None
+
+        try:
+            f_plus = float(func(x_plus))
+            best_candidate_x, best_candidate_f = x_plus, f_plus
+        except Exception:
+            pass
+
+        try:
+            f_minus = float(func(x_minus))
+            if best_candidate_f is None or f_minus < best_candidate_f:
+                best_candidate_x, best_candidate_f = x_minus, f_minus
+        except Exception:
+            pass
+
+        if best_candidate_f is not None and best_candidate_f < best:
+            best = best_candidate_f
+            best_x = best_candidate_x
+            improved = True
+
+        # Adapt step size: shrink on failure, slightly expand on success
+        if improved:
+            steps[i] = min(0.5 * span_i + 1e-12, steps[i] * 1.05)
+        else:
+            steps[i] = steps[i] * 0.7
+
+        # Rare random perturbation (helps escape shallow local minima)
+        if random.random() < 0.02:
+            x = best_x[:]
+            for j in range(dim):
+                span = ranges[j] if ranges[j] > 0 else 1.0
+                x[j] += random.gauss(0.0, 0.05 * span * frac_left)
+            x = reflect_bounds(x)
+            try:
+                fx = float(func(x))
+                if fx < best:
+                    best = fx
+                    best_x = x
+            except Exception:
+                pass
+
+    # return fitness of the best found solution
+    return best
+```";;;4f368850-4815-4b23-96e1-3d5eda43dbbb;{}
+2026-03-13 08:51:35.171462+00:00;0;user;"Generate algorithm.
+";;;d1a42511-7e90-4363-902e-abeb266b500c;{}
+2026-03-13 08:51:58.190902+00:00;1361;assistant;"```python
+import random
+import time
+import math
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using:
+      - Latin-hypercube-like initial sampling (stratified per dimension)
+      - Local refinement with an adaptive Gaussian step (1+lambda evolution strategy flavor)
+      - Occasional random restarts to escape local minima
+
+    Args:
+        func: callable(params:list[float]) -> float
+        dim: int
+        bounds: list of (low, high) for each dimension
+        max_time: seconds (int/float)
+
+    Returns:
+        best fitness (float) found within time budget
+    """"""
+    t0 = time.time()
+    eps_time = 1e-4
+
+    lows = [b[0] for b in bounds]
+    highs = [b[1] for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+
+    def clamp(x, lo, hi):
+        if x < lo: return lo
+        if x > hi: return hi
+        return x
+
+    def rand_point():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    def eval_f(x):
+        # Ensure list/sequence is passed (template says np.array, but keep it generic)
+        return float(func(x))
+
+    # --- Initial design: stratified sampling per dimension (LHS-like) ---
+    # Choose number of initial samples based on dimension but keep it modest for speed.
+    n_init = max(10, min(60, 10 * dim))
+    # Create strata per dimension: permute bins so each bin used once per dimension.
+    perms = []
+    for d in range(dim):
+        p = list(range(n_init))
+        random.shuffle(p)
+        perms.append(p)
+
+    best_x = None
+    best = float(""inf"")
+
+    # Evaluate initial samples
+    for k in range(n_init):
+        if time.time() - t0 >= max_time - eps_time:
+            return best
+        x = []
+        for d in range(dim):
+            # pick within stratum [i/n, (i+1)/n)
+            i = perms[d][k]
+            u = (i + random.random()) / n_init
+            x.append(lows[d] + u * spans[d])
+        f = eval_f(x)
+        if f < best:
+            best, best_x = f, x
+
+    # If somehow no evaluation happened (very tiny max_time), return best
+    if best_x is None:
+        return best
+
+    # --- Local search with adaptive step size and restarts ---
+    # Step sizes relative to bounds; start moderate.
+    sigma = [0.15 * spans[i] if spans[i] > 0 else 1.0 for i in range(dim)]
+    # Evolution strategy parameters
+    lam = max(8, 4 * dim)   # offspring per iteration
+    success_target = 0.2    # desired success rate
+    adapt = 1.5             # adaptation factor
+    # Restart control
+    no_improve_limit = 40   # iterations without improvement before restart
+    no_improve = 0
+
+    # Also keep a ""center"" which we refine (start from best_x)
+    center = best_x[:]
+    center_f = best
+
+    while True:
+        if time.time() - t0 >= max_time - eps_time:
+            return best
+
+        # Generate offspring around center
+        successes = 0
+        best_off_x = None
+        best_off_f = float(""inf"")
+
+        for _ in range(lam):
+            if time.time() - t0 >= max_time - eps_time:
+                return best
+
+            child = []
+            for d in range(dim):
+                # Gaussian perturbation
+                step = random.gauss(0.0, sigma[d])
+                val = center[d] + step
+                val = clamp(val, lows[d], highs[d])
+                child.append(val)
+
+            f = eval_f(child)
+
+            # Track best overall
+            if f < best:
+                best, best_x = f, child[:]
+
+            # Track best in this generation
+            if f < best_off_f:
+                best_off_f = f
+                best_off_x = child
+
+            if f < center_f:
+                successes += 1
+
+        # Accept the best offspring if it improves the center
+        if best_off_f < center_f:
+            center, center_f = best_off_x, best_off_f
+            no_improve = 0
+        else:
+            no_improve += 1
+
+        # Adapt sigma based on success rate (simple 1/5th success rule style)
+        sr = successes / float(lam)
+        if sr > success_target:
+            # increase step sizes a bit
+            for d in range(dim):
+                sigma[d] *= adapt
+        else:
+            # decrease step sizes a bit
+            for d in range(dim):
+                sigma[d] /= adapt
+
+        # Keep sigma within reasonable limits
+        for d in range(dim):
+            # lower bound avoids stagnation; upper bound avoids jumping wildly
+            min_s = 1e-12 * (spans[d] if spans[d] > 0 else 1.0)
+            max_s = 0.5 * (spans[d] if spans[d] > 0 else 1.0)
+            if sigma[d] < min_s: sigma[d] = min_s
+            if sigma[d] > max_s: sigma[d] = max_s
+
+        # Random restart if stuck: jump to a new area, but keep best found
+        if no_improve >= no_improve_limit:
+            # 50% restart near best, 50% completely random
+            if random.random() < 0.5:
+                center = best_x[:]
+                center_f = best
+                # broaden a bit after restart
+                for d in range(dim):
+                    sigma[d] = max(sigma[d], 0.2 * spans[d] if spans[d] > 0 else 1.0)
+            else:
+                center = rand_point()
+                center_f = eval_f(center)
+                if center_f < best:
+                    best, best_x = center_f, center[:]
+                for d in range(dim):
+                    sigma[d] = 0.2 * spans[d] if spans[d] > 0 else 1.0
+            no_improve = 0
+```";;;e5fffe8a-1525-4a27-a1ae-cf9b39baa1f7;{}
+2026-03-13 09:06:58.435157+00:00;0;user;"Generate algorithm.
+";;;8de9b96c-6877-49db-b5ef-83174f4dfdff;{}
+2026-03-13 09:07:16.871765+00:00;1300;assistant;"```python
+import random
+import math
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a self-contained hybrid strategy:
+    - Latin-hypercube-like seeding (stratified random per-dimension)
+    - Local refinement with adaptive coordinate search
+    - Occasional random restarts to escape local minima
+
+    Args:
+        func: callable(list_or_array_like)-> float
+        dim: int
+        bounds: list of (low, high) pairs, length = dim
+        max_time: seconds (int/float)
+
+    Returns:
+        best: best (minimum) fitness found (float)
+    """"""
+    t0 = time.time()
+    deadline = t0 + max_time
+
+    # --- helpers ---
+    lows = [b[0] for b in bounds]
+    highs = [b[1] for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+
+    def clamp(x):
+        y = list(x)
+        for i in range(dim):
+            if y[i] < lows[i]:
+                y[i] = lows[i]
+            elif y[i] > highs[i]:
+                y[i] = highs[i]
+        return y
+
+    def rand_uniform_point():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    def evaluate(x):
+        # func in the prompt mentions np.array, but we avoid numpy;
+        # most objective functions will accept a plain list as well.
+        return float(func(x))
+
+    # --- initialization: stratified random samples (LHS-like) ---
+    # Choose sample count based on dimension and time budget.
+    # Keep it modest so we leave time for local search.
+    # If max_time is tiny, fall back to a few samples.
+    base = 8 * dim
+    extra = int(20 * math.log(dim + 2))
+    n_init = max(10, min(200, base + extra))
+
+    # Build per-dimension shuffled strata
+    strata = []
+    for d in range(dim):
+        idx = list(range(n_init))
+        random.shuffle(idx)
+        strata.append(idx)
+
+    best_x = None
+    best = float(""inf"")
+
+    # Evaluate initial points
+    for k in range(n_init):
+        if time.time() >= deadline:
+            return best
+        x = []
+        for d in range(dim):
+            # sample uniformly within stratum
+            u = (strata[d][k] + random.random()) / n_init
+            x.append(lows[d] + u * spans[d])
+        f = evaluate(x)
+        if f < best:
+            best = f
+            best_x = x
+
+    if best_x is None:
+        # Extremely unlikely, but safe
+        best_x = rand_uniform_point()
+        best = evaluate(best_x)
+
+    # --- local search: adaptive coordinate pattern search ---
+    # Start with step sizes proportional to bounds
+    step = [0.25 * spans[i] if spans[i] > 0 else 0.0 for i in range(dim)]
+    min_step = [1e-12 * (spans[i] if spans[i] > 0 else 1.0) for i in range(dim)]
+
+    # Restart parameters
+    # After a number of consecutive non-improving step reductions, restart.
+    no_improve_rounds = 0
+    max_no_improve_rounds = 12
+
+    # To reduce bias, randomize coordinate order each round
+    while time.time() < deadline:
+        improved = False
+
+        order = list(range(dim))
+        random.shuffle(order)
+
+        x0 = best_x
+
+        # Try +/- move in each coordinate
+        for i in order:
+            if time.time() >= deadline:
+                return best
+
+            if step[i] <= min_step[i]:
+                continue
+
+            # positive move
+            xp = list(x0)
+            xp[i] += step[i]
+            xp = clamp(xp)
+            fp = evaluate(xp)
+            if fp < best:
+                best = fp
+                best_x = xp
+                x0 = best_x
+                improved = True
+                continue
+
+            # negative move
+            xn = list(x0)
+            xn[i] -= step[i]
+            xn = clamp(xn)
+            fn = evaluate(xn)
+            if fn < best:
+                best = fn
+                best_x = xn
+                x0 = best_x
+                improved = True
+                continue
+
+        if improved:
+            # If we are improving, gently increase steps to move faster.
+            for i in range(dim):
+                step[i] *= 1.2
+                # Cap step to span to avoid wasted evaluations
+                if step[i] > spans[i]:
+                    step[i] = spans[i]
+            no_improve_rounds = 0
+        else:
+            # If no improvement, shrink steps
+            for i in range(dim):
+                step[i] *= 0.5
+            no_improve_rounds += 1
+
+        # If we're stuck (steps small / many failures), do a randomized restart near best
+        # plus occasional full random restart.
+        if no_improve_rounds >= max_no_improve_rounds:
+            if time.time() >= deadline:
+                return best
+
+            # 70%: local perturbation around best, 30%: global restart
+            if random.random() < 0.7:
+                # local perturbation scale based on current step, with floor based on span
+                x = list(best_x)
+                for i in range(dim):
+                    scale = max(step[i], 0.02 * spans[i])
+                    x[i] += (random.random() * 2.0 - 1.0) * scale
+                x = clamp(x)
+            else:
+                x = rand_uniform_point()
+
+            f = evaluate(x)
+            if f < best:
+                best = f
+                best_x = x
+
+            # Reset steps after restart
+            step = [0.25 * spans[i] if spans[i] > 0 else 0.0 for i in range(dim)]
+            no_improve_rounds = 0
+
+    return best
+```";;;8a9c3e36-d3bd-43e6-8a55-df89ce154c34;{}
+2026-03-13 09:22:17.113382+00:00;0;user;"Generate algorithm.
+";;;3751ae08-dd70-4858-b894-390b6be17937;{}
+2026-03-13 09:22:40.827406+00:00;1485;assistant;"```python
+import time
+import random
+import math
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a self-contained hybrid of:
+      - quasi-random (Halton) initialization
+      - local refinement via coordinate search (pattern search)
+      - occasional random restarts
+
+    Inputs:
+      func   : callable(params_list_or_array) -> float
+      dim    : int
+      bounds : list of (low, high) for each dimension
+      max_time : seconds (int/float)
+
+    Returns:
+      best fitness found (float)
+    """"""
+
+    # ----------------------------
+    # Helpers (no external libs)
+    # ----------------------------
+    start = time.time()
+    deadline = start + max_time
+
+    lows = [b[0] for b in bounds]
+    highs = [b[1] for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+
+    def clip(x):
+        # clamp vector to bounds
+        y = list(x)
+        for i in range(dim):
+            if y[i] < lows[i]:
+                y[i] = lows[i]
+            elif y[i] > highs[i]:
+                y[i] = highs[i]
+        return y
+
+    def rand_point():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    def safe_eval(x):
+        # If user func throws or returns non-finite, treat as bad
+        try:
+            v = func(x)
+            if v is None:
+                return float(""inf"")
+            v = float(v)
+            if math.isnan(v) or math.isinf(v):
+                return float(""inf"")
+            return v
+        except Exception:
+            return float(""inf"")
+
+    # Halton sequence for quasi-random coverage
+    def first_primes(n):
+        primes = []
+        k = 2
+        while len(primes) < n:
+            is_p = True
+            r = int(k ** 0.5)
+            for p in primes:
+                if p > r:
+                    break
+                if k % p == 0:
+                    is_p = False
+                    break
+            if is_p:
+                primes.append(k)
+            k += 1
+        return primes
+
+    primes = first_primes(dim)
+
+    def halton(index, base):
+        # index >= 1
+        f = 1.0
+        r = 0.0
+        i = index
+        while i > 0:
+            f /= base
+            r += f * (i % base)
+            i //= base
+        return r
+
+    def halton_point(k):
+        # k starts at 1
+        x = []
+        for i in range(dim):
+            u = halton(k, primes[i])
+            x.append(lows[i] + u * spans[i])
+        return x
+
+    # ----------------------------
+    # Algorithm parameters
+    # ----------------------------
+    # initial step sizes (fraction of range)
+    step = [0.2 * spans[i] if spans[i] > 0 else 0.0 for i in range(dim)]
+    min_step = 1e-12  # absolute min step guard
+    shrink = 0.6      # step size shrink factor when stuck
+    grow = 1.05       # mild growth if improving
+    patience = 30     # iterations without improvement before restart
+    max_halton = 200  # try a number of quasi-random seeds early
+
+    # ----------------------------
+    # Initialization: best of several seeds
+    # ----------------------------
+    best = float(""inf"")
+    best_x = None
+
+    k = 1
+    while time.time() < deadline and k <= max_halton:
+        x = halton_point(k)
+        fx = safe_eval(x)
+        if fx < best:
+            best, best_x = fx, x
+        k += 1
+
+    # Fallback if halton was cut short immediately
+    if best_x is None:
+        best_x = rand_point()
+        best = safe_eval(best_x)
+
+    # ----------------------------
+    # Local search loop (pattern search with restarts)
+    # ----------------------------
+    no_improve = 0
+    it = 0
+
+    while time.time() < deadline:
+        it += 1
+        improved = False
+
+        # coordinate-wise exploratory moves
+        # randomize order to avoid bias
+        order = list(range(dim))
+        random.shuffle(order)
+
+        x0 = best_x
+        f0 = best
+
+        for i in order:
+            if time.time() >= deadline:
+                return best
+
+            if step[i] <= 0:
+                continue
+
+            # try +step and -step
+            for direction in (1.0, -1.0):
+                cand = list(x0)
+                cand[i] += direction * step[i]
+                cand = clip(cand)
+                fc = safe_eval(cand)
+                if fc < best:
+                    best = fc
+                    best_x = cand
+                    improved = True
+                    break  # accept first improvement for this coordinate
+            if improved:
+                # move base point for subsequent coordinates
+                x0 = best_x
+                f0 = best
+
+        if improved:
+            no_improve = 0
+            # gently grow steps to speed along valleys
+            for i in range(dim):
+                step[i] *= grow
+                # cap step to range
+                if step[i] > spans[i]:
+                    step[i] = spans[i]
+        else:
+            no_improve += 1
+            # shrink steps when stuck
+            for i in range(dim):
+                step[i] *= shrink
+                if step[i] < min_step:
+                    step[i] = min_step
+
+        # occasional random restart to escape local minima
+        if no_improve >= patience and time.time() < deadline:
+            # restart around current best with a mix of random and gaussian-like perturbation
+            x = list(best_x)
+            for i in range(dim):
+                # triangular distribution (sum of uniforms) as a lightweight ""normal-ish"" perturbation
+                u = (random.random() + random.random() + random.random()) / 3.0  # in [0,1]
+                u = (u - 0.5) * 2.0  # in [-1,1]
+                radius = 0.5 * spans[i]
+                x[i] += u * radius
+            x = clip(x)
+            fx = safe_eval(x)
+            if fx < best:
+                best, best_x = fx, x
+
+            # also sometimes jump to a fresh random point
+            if random.random() < 0.5:
+                x = rand_point()
+                fx = safe_eval(x)
+                if fx < best:
+                    best, best_x = fx, x
+
+            # reset steps to a moderate size after restart
+            step = [0.2 * spans[i] if spans[i] > 0 else 0.0 for i in range(dim)]
+            no_improve = 0
+
+    return best
+```";;;fe86e311-bfb7-4059-b349-a5f4c7d559a0;{}
+2026-03-13 09:37:41.067735+00:00;0;user;"Generate algorithm.
+";;;20e3b3a4-d3f1-443f-8016-86858d43d384;{}
+2026-03-13 09:38:01.788905+00:00;1356;assistant;"```python
+import random
+import math
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a self-contained hybrid:
+    - Initial Latin-hypercube-like stratified sampling
+    - Local refinement with adaptive Gaussian steps (1/5 success rule style)
+    - Occasional random restarts to escape local minima
+
+    Parameters
+    ----------
+    func : callable
+        func(x) -> float, where x is a list (or sequence) of length dim.
+    dim : int
+        Dimension of search space.
+    bounds : list of (low, high)
+        Bounds per dimension.
+    max_time : int or float
+        Max time in seconds.
+
+    Returns
+    -------
+    best : float
+        Best (minimum) fitness found.
+    """"""
+
+    # ---------- helpers ----------
+    def clip(x):
+        # clip to bounds
+        y = [0.0] * dim
+        for i in range(dim):
+            lo, hi = bounds[i]
+            v = x[i]
+            if v < lo:
+                v = lo
+            elif v > hi:
+                v = hi
+            y[i] = v
+        return y
+
+    def rand_uniform():
+        return [random.uniform(bounds[i][0], bounds[i][1]) for i in range(dim)]
+
+    def evaluate(x):
+        # func is assumed to accept a list; if it accepts other types, Python will still pass list.
+        return float(func(x))
+
+    # Basic scale per dimension (used for step sizes)
+    span = [max(1e-12, bounds[i][1] - bounds[i][0]) for i in range(dim)]
+
+    # ---------- initialization ----------
+    start_time = time.time()
+    deadline = start_time + float(max_time)
+
+    best_x = None
+    best = float(""inf"")
+
+    # Determine a small budget for stratified initial sampling
+    # Keep it light to preserve time for refinement
+    init_n = max(10, 6 * dim)
+
+    # ""LHS-like"": for each dimension, permute bins then sample within each bin
+    # We combine them by taking the k-th bin sample for all dims.
+    bins = list(range(init_n))
+    per_dim_bins = []
+    for _ in range(dim):
+        b = bins[:]
+        random.shuffle(b)
+        per_dim_bins.append(b)
+
+    for k in range(init_n):
+        if time.time() >= deadline:
+            return best
+        x = [0.0] * dim
+        for i in range(dim):
+            lo, hi = bounds[i]
+            # pick bin index for this dim
+            bi = per_dim_bins[i][k]
+            # sample uniformly inside that bin
+            a = lo + (span[i] * bi) / init_n
+            b = lo + (span[i] * (bi + 1)) / init_n
+            x[i] = random.uniform(a, b)
+        fx = evaluate(x)
+        if fx < best:
+            best, best_x = fx, x
+
+    if best_x is None:
+        # fallback, should not happen
+        best_x = rand_uniform()
+        best = evaluate(best_x)
+
+    # ---------- adaptive local search with restarts ----------
+    # Step size fraction per dimension (start moderately sized)
+    sigma = [0.15 * s for s in span]  # per-dimension std dev
+    min_sigma = [1e-6 * s for s in span]
+    max_sigma = [0.5 * s for s in span]
+
+    # Control parameters
+    p_restart = 0.03          # chance to restart on each iteration
+    success_window = 30       # adapt sigma based on recent successes
+    successes = 0
+    trials = 0
+
+    # Keep a ""current"" point for local refinement; occasionally jump elsewhere
+    cur_x = best_x[:]
+    cur_f = best
+
+    while time.time() < deadline:
+        # Random restart (global exploration)
+        if random.random() < p_restart:
+            x = rand_uniform()
+            fx = evaluate(x)
+            if fx < best:
+                best, best_x = fx, x
+                cur_x, cur_f = x[:], fx
+            else:
+                # also allow restart to become current sometimes
+                cur_x, cur_f = x[:], fx
+            # reset adaptation a bit
+            successes = 0
+            trials = 0
+            # reset sigma moderately
+            sigma = [max(min_sigma[i], min(max_sigma[i], 0.15 * span[i])) for i in range(dim)]
+            continue
+
+        # Propose a local move (Gaussian around current)
+        # Occasionally do a larger jump (""heavy tail"")
+        heavy = (random.random() < 0.15)
+        x = [0.0] * dim
+        for i in range(dim):
+            step = random.gauss(0.0, sigma[i])
+            if heavy:
+                step *= 3.0
+            x[i] = cur_x[i] + step
+        x = clip(x)
+
+        fx = evaluate(x)
+        trials += 1
+
+        # Accept if improves current; always update global best if improved
+        if fx < cur_f:
+            cur_x, cur_f = x, fx
+            successes += 1
+            if fx < best:
+                best, best_x = fx, x
+
+        # Adapt sigma every window of trials (1/5-ish rule)
+        if trials >= success_window:
+            rate = successes / float(trials)
+            # If too successful, increase step; if not, decrease
+            if rate > 0.25:
+                factor = 1.3
+            elif rate < 0.15:
+                factor = 0.7
+            else:
+                factor = 1.0
+
+            if factor != 1.0:
+                for i in range(dim):
+                    sigma[i] = max(min_sigma[i], min(max_sigma[i], sigma[i] * factor))
+
+            # If we are stagnating with tiny steps, force a restart-like jump
+            if rate == 0.0:
+                # increase chance of escape by enlarging sigma slightly and moving current to best
+                cur_x, cur_f = best_x[:], best
+                for i in range(dim):
+                    sigma[i] = max(sigma[i], 0.05 * span[i])
+
+            successes = 0
+            trials = 0
+
+    return best
+```";;;a37831ef-3db6-476f-80e2-55a666c3acb3;{}
+2026-03-13 09:53:02.031220+00:00;0;user;"Generate algorithm.
+";;;fce3b485-5de7-4739-b09d-95396fc1635d;{}
+2026-03-13 09:53:22.150671+00:00;1498;assistant;"```python
+import random
+import math
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using:
+      - Latin-hypercube-like stratified initialization
+      - Local coordinate search (pattern search)
+      - Occasional random restarts
+      - Step-size adaptation
+    No external libraries required.
+    """"""
+
+    # ----------------- helpers -----------------
+    def clip(x, lo, hi):
+        if x < lo: return lo
+        if x > hi: return hi
+        return x
+
+    def clamp_vec(v):
+        return [clip(v[i], bounds[i][0], bounds[i][1]) for i in range(dim)]
+
+    def rand_uniform_vec():
+        return [random.uniform(bounds[i][0], bounds[i][1]) for i in range(dim)]
+
+    def vec_add(v, i, delta):
+        u = v[:]  # copy
+        u[i] += delta
+        return u
+
+    def safe_eval(x):
+        # func is expected to accept an ""array-like"" of length dim
+        try:
+            y = func(x)
+            # handle NaN / inf robustly
+            if y is None or (isinstance(y, float) and (math.isnan(y) or math.isinf(y))):
+                return float(""inf"")
+            return float(y)
+        except Exception:
+            return float(""inf"")
+
+    def lhs_batch(n):
+        # Simple LHS-style stratified sampling per dimension:
+        # For each dim, pick one point from each of n strata and permute.
+        # Produces n points.
+        strata = []
+        for d in range(dim):
+            lo, hi = bounds[d]
+            width = hi - lo
+            # pick one random position in each stratum
+            vals = [lo + (k + random.random()) * (width / n) for k in range(n)]
+            random.shuffle(vals)
+            strata.append(vals)
+        pts = []
+        for k in range(n):
+            pts.append([strata[d][k] for d in range(dim)])
+        return pts
+
+    # ----------------- initialization -----------------
+    t0 = time.time()
+    deadline = t0 + max_time
+
+    # global best
+    best_x = None
+    best = float(""inf"")
+
+    # initial step sizes ~ 10% of range per dimension
+    step0 = []
+    for lo, hi in bounds:
+        r = hi - lo
+        step0.append(0.1 * r if r > 0 else 1.0)
+
+    # Evaluate an initial batch quickly to get a decent start
+    # batch size scales mildly with dimension, but stays small for time-bounded runs
+    init_n = max(8, min(40, 10 + 2 * dim))
+    for x in lhs_batch(init_n):
+        if time.time() >= deadline:
+            return best
+        fx = safe_eval(x)
+        if fx < best:
+            best, best_x = fx, x
+
+    if best_x is None:
+        # fallback
+        best_x = rand_uniform_vec()
+        best = safe_eval(best_x)
+
+    # ----------------- main loop: local search + restarts -----------------
+    x = best_x[:]
+    fx = best
+    step = step0[:]
+
+    # parameters
+    min_step_factor = 1e-8
+    shrink = 0.5
+    grow = 1.2
+    restart_prob = 0.02  # occasional restart
+    max_no_improve = 5 * dim + 10
+
+    no_improve = 0
+
+    while time.time() < deadline:
+        # occasional random restart around global best or fully random
+        if random.random() < restart_prob:
+            if random.random() < 0.7 and best_x is not None:
+                # restart near best
+                x = best_x[:]
+                # jitter
+                for i in range(dim):
+                    lo, hi = bounds[i]
+                    r = (hi - lo)
+                    jitter = (random.uniform(-1.0, 1.0) * 0.05 * r) if r > 0 else 0.0
+                    x[i] = clip(x[i] + jitter, lo, hi)
+            else:
+                x = rand_uniform_vec()
+            fx = safe_eval(x)
+            if fx < best:
+                best, best_x = fx, x[:]
+            no_improve = 0
+
+        improved_this_round = False
+
+        # coordinate pattern search: try +/- step in each dimension
+        # randomize order to avoid bias
+        order = list(range(dim))
+        random.shuffle(order)
+
+        for i in order:
+            if time.time() >= deadline:
+                return best
+
+            lo, hi = bounds[i]
+            si = step[i]
+
+            if si <= (hi - lo) * min_step_factor and (hi - lo) > 0:
+                continue
+
+            # try positive move
+            xp = vec_add(x, i, si)
+            xp = clamp_vec(xp)
+            f_p = safe_eval(xp)
+
+            # try negative move
+            xm = vec_add(x, i, -si)
+            xm = clamp_vec(xm)
+            f_m = safe_eval(xm)
+
+            # pick best among current and candidates
+            if f_p < fx or f_m < fx:
+                if f_p <= f_m:
+                    x, fx = xp, f_p
+                else:
+                    x, fx = xm, f_m
+                improved_this_round = True
+                step[i] *= grow  # slightly increase step on success
+
+                if fx < best:
+                    best, best_x = fx, x[:]
+            else:
+                step[i] *= shrink  # shrink step on failure
+
+        if improved_this_round:
+            no_improve = 0
+        else:
+            no_improve += 1
+
+        # if stuck, do a broader random probe around best
+        if no_improve >= max_no_improve:
+            no_improve = 0
+            # reset steps
+            step = step0[:]
+            # probe a few random points biased to best
+            probes = 5 + dim
+            for _ in range(probes):
+                if time.time() >= deadline:
+                    return best
+                if best_x is None:
+                    cand = rand_uniform_vec()
+                else:
+                    cand = best_x[:]
+                    for i in range(dim):
+                        lo, hi = bounds[i]
+                        r = hi - lo
+                        # heavier-tailed perturbation (mixture)
+                        scale = 0.1 * r if r > 0 else 1.0
+                        if random.random() < 0.2:
+                            delta = random.uniform(-1, 1) * 0.5 * r
+                        else:
+                            delta = random.uniform(-1, 1) * scale
+                        cand[i] = clip(cand[i] + delta, lo, hi)
+                f_c = safe_eval(cand)
+                if f_c < best:
+                    best, best_x = f_c, cand[:]
+                    x, fx = best_x[:], best
+
+    return best
+```";;;a3377e6b-e3c7-44e7-ba00-b5dfabda09e3;{}
+2026-03-13 10:08:22.394887+00:00;0;user;"Generate algorithm.
+";;;d49db4c5-d8e2-4fe4-ad14-65c210dd3f1a;{}
+2026-03-13 10:08:39.039771+00:00;1097;assistant;"```python
+import random
+import math
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a self-contained hybrid strategy:
+      1) Random exploration
+      2) Local coordinate perturbation with adaptive step sizes
+      3) Occasional ""restart"" (re-sample) to escape local minima
+
+    Arguments:
+      func: callable(params_list)-> float
+      dim: int, number of parameters
+      bounds: list of (low, high) pairs, length == dim
+      max_time: seconds (int/float)
+
+    Returns:
+      best: best (minimum) fitness found (float)
+    """"""
+    t0 = time.time()
+
+    # --- Helpers ---
+    lows = [b[0] for b in bounds]
+    highs = [b[1] for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+
+    def clamp(x, i):
+        lo, hi = lows[i], highs[i]
+        if x < lo: return lo
+        if x > hi: return hi
+        return x
+
+    def rand_point():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    def evaluate(x):
+        # func expects an array-like; keep it list-only (no external libs)
+        v = func(x)
+        # Be robust to weird returns
+        if v is None:
+            return float(""inf"")
+        try:
+            v = float(v)
+        except Exception:
+            return float(""inf"")
+        if math.isnan(v) or math.isinf(v):
+            return float(""inf"")
+        return v
+
+    # --- Initialization ---
+    x_best = rand_point()
+    f_best = evaluate(x_best)
+
+    # Per-dimension step sizes (start moderately large)
+    step = [0.25 * spans[i] if spans[i] > 0 else 0.0 for i in range(dim)]
+    min_step = [1e-12 * (spans[i] if spans[i] > 0 else 1.0) for i in range(dim)]
+
+    # Control parameters
+    shrink = 0.7        # step *= shrink on failure
+    grow = 1.05         # step *= grow on success (small)
+    restart_prob = 0.05 # occasional restart even if improving
+    no_improve = 0
+    max_no_improve = 1000
+
+    # --- Main loop ---
+    while True:
+        if time.time() - t0 >= max_time:
+            return f_best
+
+        # Restart logic: if stuck, or by small probability
+        if no_improve >= max_no_improve or random.random() < restart_prob:
+            x = rand_point()
+            f = evaluate(x)
+            if f < f_best:
+                x_best, f_best = x, f
+                # re-expand steps a bit after finding new best by restart
+                step = [max(s, 0.25 * spans[i]) for i, s in enumerate(step)]
+                no_improve = 0
+            else:
+                no_improve += 1
+            continue
+
+        # Local search around current best: coordinate-wise random perturbations
+        x = x_best[:]  # start from incumbent
+        improved = False
+
+        # Randomize coordinate order
+        idxs = list(range(dim))
+        random.shuffle(idxs)
+
+        for i in idxs:
+            if time.time() - t0 >= max_time:
+                return f_best
+
+            if spans[i] <= 0:
+                continue
+
+            # Try a few candidates along this coordinate
+            # symmetric move + a smaller move
+            candidates = []
+            delta = step[i]
+            if delta <= 0:
+                continue
+
+            # Direction choice
+            sign = -1.0 if random.random() < 0.5 else 1.0
+            candidates.append(sign * delta)
+            candidates.append(-sign * delta)
+            candidates.append(sign * 0.5 * delta)
+            candidates.append(-sign * 0.5 * delta)
+
+            best_local = f_best
+            best_x_local = None
+
+            for d in candidates:
+                xx = x_best[:]  # always perturb around best
+                xx[i] = clamp(xx[i] + d, i)
+                ff = evaluate(xx)
+                if ff < best_local:
+                    best_local = ff
+                    best_x_local = xx
+
+            if best_x_local is not None:
+                # Accept improvement
+                x_best = best_x_local
+                f_best = best_local
+                improved = True
+                # Slightly grow step on success, but cap to span
+                step[i] = min(step[i] * grow, spans[i])
+            else:
+                # Shrink step if no improvement on this coordinate
+                step[i] = max(step[i] * shrink, min_step[i])
+
+        if improved:
+            no_improve = 0
+        else:
+            no_improve += 1
+
+        # If all steps became tiny, trigger a restart soon
+        if all(step[i] <= 10.0 * min_step[i] for i in range(dim)):
+            no_improve = max_no_improve
+
+```";;;56cccf97-6dfe-4f8a-9f84-4c0fa7456bd4;{}
+2026-03-13 10:23:39.279732+00:00;0;user;"Generate algorithm.
+";;;f79a6996-0e42-40b2-9e91-2d1a1b524385;{}
+2026-03-13 10:24:03.084120+00:00;1282;assistant;"```python
+import random
+import math
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a self-contained hybrid:
+    - Latin-hypercube-like stratified initialization
+    - (1+1)-ES style local search with adaptive step size (success rule)
+    - Occasional random restarts to escape local minima
+
+    Parameters
+    ----------
+    func : callable
+        func(x) -> float, where x is a list/array of length dim
+    dim : int
+    bounds : list of (low, high)
+    max_time : int/float
+        seconds
+
+    Returns
+    -------
+    best : float
+        best (minimum) objective value found within time budget
+    """"""
+    t0 = time.time()
+
+    lows = [float(b[0]) for b in bounds]
+    highs = [float(b[1]) for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+
+    # Helpers
+    def clamp(x):
+        for i in range(dim):
+            if x[i] < lows[i]:
+                x[i] = lows[i]
+            elif x[i] > highs[i]:
+                x[i] = highs[i]
+        return x
+
+    def rand_point():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    def evaluate(x):
+        # func may accept list or array-like; keep it simple/self-contained
+        return float(func(x))
+
+    # ---- Initial sampling: stratified across each dimension ----
+    # Choose a modest number so we don't burn time on initialization.
+    n_init = max(8, min(40, 6 * dim))
+    # Pre-generate stratified bins per dimension, then shuffle independently.
+    strata = []
+    for i in range(dim):
+        idxs = list(range(n_init))
+        random.shuffle(idxs)
+        strata.append(idxs)
+
+    best_x = None
+    best = float(""inf"")
+
+    for k in range(n_init):
+        if time.time() - t0 >= max_time:
+            return best
+        x = []
+        for i in range(dim):
+            # sample within the k-th stratum for dim i
+            s = strata[i][k]
+            u = (s + random.random()) / n_init
+            x.append(lows[i] + u * spans[i])
+        f = evaluate(x)
+        if f < best:
+            best = f
+            best_x = x
+
+    if best_x is None:
+        # degenerate case
+        best_x = rand_point()
+        best = evaluate(best_x)
+
+    # ---- Local search with adaptive Gaussian steps + restarts ----
+    # Start step size as a fraction of range.
+    base_sigma = [0.15 * spans[i] if spans[i] > 0 else 1.0 for i in range(dim)]
+    sigma = base_sigma[:]
+
+    # Success-based adaptation parameters
+    success_window = 30
+    successes = 0
+    trials = 0
+
+    # Restart policy
+    last_improve_time = time.time()
+    stagnation_limit = max(0.2, min(2.0, 0.15 * max_time))  # seconds without improvement before restart
+    restart_prob = 0.02  # small chance to restart anyway
+
+    x = best_x[:]
+    fx = best
+
+    while True:
+        if time.time() - t0 >= max_time:
+            return best
+
+        # Optional restart if stagnating or by chance
+        if (time.time() - last_improve_time) > stagnation_limit or random.random() < restart_prob:
+            # Random restart, but keep a bias toward best known region by mixing
+            xr = rand_point()
+            mix = 0.5 * random.random()
+            x = [mix * x[i] + (1.0 - mix) * xr[i] for i in range(dim)]
+            x = clamp(x)
+            fx = evaluate(x)
+            # Reset step size to explore
+            sigma = base_sigma[:]
+            successes = 0
+            trials = 0
+
+            if fx < best:
+                best = fx
+                best_x = x[:]
+                last_improve_time = time.time()
+
+        # Propose mutation around current x
+        cand = x[:]
+        for i in range(dim):
+            # Gaussian step via Box-Muller transform (no external libs)
+            u1 = random.random()
+            u2 = random.random()
+            # avoid log(0)
+            u1 = max(u1, 1e-12)
+            z = math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
+            cand[i] = cand[i] + sigma[i] * z
+        cand = clamp(cand)
+
+        fc = evaluate(cand)
+
+        trials += 1
+        if fc < fx:
+            x, fx = cand, fc
+            successes += 1
+            if fc < best:
+                best = fc
+                best_x = cand[:]
+                last_improve_time = time.time()
+
+        # Adapt sigma every window using a 1/5 success rule style heuristic
+        if trials >= success_window:
+            rate = successes / float(trials)
+            # If too successful, increase step; if not, decrease.
+            if rate > 0.25:
+                factor = 1.2
+            elif rate < 0.15:
+                factor = 0.7
+            else:
+                factor = 1.0
+
+            for i in range(dim):
+                sigma[i] *= factor
+                # Keep sigma within reasonable bounds
+                min_sigma = 1e-12 + 1e-6 * spans[i]
+                max_sigma = 0.5 * spans[i] + 1e-12
+                if sigma[i] < min_sigma:
+                    sigma[i] = min_sigma
+                if sigma[i] > max_sigma:
+                    sigma[i] = max_sigma
+
+            successes = 0
+            trials = 0
+```";;;a00acbcb-cece-4f1c-b569-b394e6c88e66;{}
+2026-03-13 10:39:03.327950+00:00;0;user;"Generate algorithm.
+";;;1f00224b-5e55-47df-b79c-b1949ea12fdf;{}
+2026-03-13 10:39:22.573747+00:00;1325;assistant;"```python
+import random
+import time
+import math
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using a self-contained hybrid:
+    - Latin-hypercube-like seeding (stratified per dimension)
+    - Local coordinate search (pattern search)
+    - Occasional random restarts with adaptive step size
+
+    Args:
+        func: callable(params_list_or_array) -> float
+        dim: int
+        bounds: list of (low, high) pairs, length=dim
+        max_time: seconds (int/float)
+
+    Returns:
+        best: float, fitness of the best found solution
+    """"""
+    t0 = time.time()
+    deadline = t0 + float(max_time)
+
+    # --- helpers ---
+    lows = [float(b[0]) for b in bounds]
+    highs = [float(b[1]) for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+
+    def clamp(x):
+        return [min(highs[i], max(lows[i], x[i])) for i in range(dim)]
+
+    def rand_point():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    def eval_f(x):
+        # func may accept list or array-like; we pass list (no external deps)
+        return float(func(x))
+
+    # Best-so-far
+    best_x = None
+    best = float(""inf"")
+
+    # Determine a reasonable evaluation budget for initial seeding
+    # (kept small; we are time-limited, not eval-limited)
+    seed_n = max(8, min(64, 4 * dim))
+
+    # --- stratified seeding (approx. Latin Hypercube Sampling) ---
+    # For each dimension, create stratified bins and permute them.
+    # Then combine i-th bin sample across dimensions.
+    strata = []
+    for j in range(dim):
+        n = seed_n
+        width = spans[j] / n if n > 0 else 0.0
+        bins = []
+        for i in range(n):
+            a = lows[j] + i * width
+            b = lows[j] + (i + 1) * width
+            # sample uniformly within bin
+            u = random.random()
+            bins.append(a + u * (b - a))
+        random.shuffle(bins)
+        strata.append(bins)
+
+    # Evaluate seeds
+    for i in range(seed_n):
+        if time.time() >= deadline:
+            return best
+        x = [strata[j][i] for j in range(dim)]
+        fx = eval_f(x)
+        if fx < best:
+            best = fx
+            best_x = x
+
+    if best_x is None:
+        # Fallback (should not happen)
+        x = rand_point()
+        best = eval_f(x)
+        best_x = x
+
+    # --- Local search parameters ---
+    # Initial step: a fraction of span (handles scaling)
+    step0 = [0.2 * s if s > 0 else 1.0 for s in spans]
+    min_step = [1e-12 * (s if s > 0 else 1.0) for s in spans]
+
+    # Search state
+    x = best_x[:]
+    fx = best
+    step = step0[:]
+
+    # Restart control
+    no_improve_iters = 0
+    restart_after = 20 + 5 * dim
+
+    # --- main loop: coordinate pattern search + adaptive restarts ---
+    while time.time() < deadline:
+        improved = False
+
+        # Try coordinate moves in random dimension order
+        order = list(range(dim))
+        random.shuffle(order)
+
+        for j in order:
+            if time.time() >= deadline:
+                return best
+
+            if spans[j] == 0.0:
+                continue
+
+            # probe both directions
+            for direction in (-1.0, 1.0):
+                cand = x[:]
+                cand[j] = cand[j] + direction * step[j]
+                cand = clamp(cand)
+                f_cand = eval_f(cand)
+
+                if f_cand < fx:
+                    x, fx = cand, f_cand
+                    improved = True
+                    if f_cand < best:
+                        best, best_x = f_cand, cand[:]
+                    break  # move to next dimension
+            # continue scanning dimensions regardless
+
+        if improved:
+            no_improve_iters = 0
+            # Mildly increase steps on success (but keep bounded)
+            for j in range(dim):
+                step[j] = min(step0[j], step[j] * 1.2)
+        else:
+            no_improve_iters += 1
+            # Reduce steps on failure
+            for j in range(dim):
+                step[j] *= 0.5
+                if step[j] < min_step[j]:
+                    step[j] = min_step[j]
+
+        # If stuck for a while, restart near the best point or random point
+        if no_improve_iters >= restart_after:
+            no_improve_iters = 0
+
+            if time.time() >= deadline:
+                return best
+
+            # With higher probability, restart near best; otherwise global random
+            if random.random() < 0.75:
+                # Gaussian perturbation around best_x with scale based on current step0
+                cand = []
+                for j in range(dim):
+                    sigma = 0.15 * spans[j] if spans[j] > 0 else 1.0
+                    # Box-Muller for normal sample (avoid external libs)
+                    u1 = max(1e-12, random.random())
+                    u2 = random.random()
+                    z = math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
+                    cand.append(best_x[j] + sigma * z)
+                cand = clamp(cand)
+            else:
+                cand = rand_point()
+
+            f_cand = eval_f(cand)
+            if f_cand < fx:
+                x, fx = cand, f_cand
+            if f_cand < best:
+                best, best_x = f_cand, cand[:]
+
+            # Reset step sizes after restart
+            step = step0[:]
+
+    return best
+```";;;945f7262-febf-4bcc-85ee-e38d77b571d1;{}
+2026-03-13 10:54:22.819761+00:00;0;user;"Generate algorithm.
+";;;a57fa7af-ef6b-4632-9d33-93fe1b61326b;{}
+2026-03-13 10:54:49.284647+00:00;2010;assistant;"```python
+import random
+import time
+import math
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Time-bounded minimization using:
+      1) Latin-hypercube-like stratified initialization
+      2) (mu, lambda) Evolution Strategy with self-adaptive step-size
+      3) Occasional coordinate/local refinements
+    No external libraries required.
+
+    func: callable(list[float]) -> float
+    dim: int
+    bounds: list[(low, high)] length == dim
+    max_time: seconds (int/float)
+    """"""
+    t0 = time.time()
+    deadline = t0 + max_time
+
+    # --------- helpers ----------
+    lows = [b[0] for b in bounds]
+    highs = [b[1] for b in bounds]
+    spans = [highs[i] - lows[i] for i in range(dim)]
+    # Avoid zero spans
+    spans = [s if s != 0.0 else 1.0 for s in spans]
+
+    def clamp_vec(x):
+        y = x[:]
+        for i in range(dim):
+            if y[i] < lows[i]:
+                y[i] = lows[i]
+            elif y[i] > highs[i]:
+                y[i] = highs[i]
+        return y
+
+    def rand_uniform_vec():
+        return [lows[i] + random.random() * spans[i] for i in range(dim)]
+
+    # Box-Muller normal generator (no numpy)
+    _has_spare = False
+    _spare = 0.0
+    def randn():
+        nonlocal _has_spare, _spare
+        if _has_spare:
+            _has_spare = False
+            return _spare
+        u1 = random.random()
+        u2 = random.random()
+        # protect log(0)
+        u1 = max(u1, 1e-15)
+        r = math.sqrt(-2.0 * math.log(u1))
+        theta = 2.0 * math.pi * u2
+        z0 = r * math.cos(theta)
+        z1 = r * math.sin(theta)
+        _spare = z1
+        _has_spare = True
+        return z0
+
+    def evaluate(x):
+        # func expects an array-like; list is fine per prompt example
+        return float(func(x))
+
+    # --------- initialization: stratified sampling per dimension ----------
+    # sample count scales with dim but remains modest for time-bounded runs
+    n_init = max(8, min(60, 10 + 4 * dim))
+    strata = list(range(n_init))
+
+    # Build per-dimension shuffled strata indices
+    per_dim_bins = []
+    for j in range(dim):
+        bins = strata[:]
+        random.shuffle(bins)
+        per_dim_bins.append(bins)
+
+    best_x = None
+    best = float(""inf"")
+
+    # Evaluate init points
+    for k in range(n_init):
+        if time.time() >= deadline:
+            return best
+        x = []
+        for j in range(dim):
+            b = per_dim_bins[j][k]
+            # pick uniformly within stratum
+            u = (b + random.random()) / n_init
+            x.append(lows[j] + u * spans[j])
+        fx = evaluate(x)
+        if fx < best:
+            best = fx
+            best_x = x
+
+    # If func is extremely slow, we might only have init
+    if best_x is None:
+        return best
+
+    # --------- Evolution Strategy parameters ----------
+    # Population sizes chosen for general robustness without heavy overhead
+    mu = max(2, min(12, 2 + dim // 2))          # parents kept
+    lam = max(8, min(40, 6 + 3 * dim))          # offspring per generation
+
+    # self-adaptive step size (sigma) relative to search space
+    # start moderately wide to explore, then adapt
+    sigma = 0.25  # fraction of span (applied per-dim)
+    sigma_min = 1e-8
+    sigma_max = 2.0
+
+    # Parent pool starts as small set around best + random points
+    parents = []
+    parents_fx = []
+
+    # seed parent set
+    # include best and a few randoms
+    seed_count = mu
+    for i in range(seed_count):
+        if i == 0:
+            x = best_x[:]
+        else:
+            x = rand_uniform_vec()
+        fx = evaluate(x) if i != 0 else best
+        parents.append(x)
+        parents_fx.append(fx)
+        if fx < best:
+            best = fx
+            best_x = x
+
+    # --------- local refinement: coordinate pattern search around best ----------
+    def local_refine(x0, f0, base_step_frac):
+        """"""
+        Simple coordinate search with decreasing step.
+        Returns (x_best, f_best).
+        """"""
+        x = x0[:]
+        fx = f0
+        step = base_step_frac
+        # limited iterations to keep time bounded
+        for _ in range(12):
+            if time.time() >= deadline:
+                break
+            improved = False
+            for j in range(dim):
+                if time.time() >= deadline:
+                    break
+                delta = step * spans[j]
+                if delta <= 0:
+                    continue
+
+                # try +delta
+                xp = x[:]
+                xp[j] = min(highs[j], xp[j] + delta)
+                fp = evaluate(xp)
+                if fp < fx:
+                    x, fx = xp, fp
+                    improved = True
+                    continue
+
+                # try -delta
+                xm = x[:]
+                xm[j] = max(lows[j], xm[j] - delta)
+                fm = evaluate(xm)
+                if fm < fx:
+                    x, fx = xm, fm
+                    improved = True
+
+            if not improved:
+                step *= 0.5
+                if step * max(spans) < 1e-12:
+                    break
+        return x, fx
+
+    # --------- main loop ----------
+    # Use 1/5th success rule style update for sigma
+    successes = 0
+    trials = 0
+    last_refine_time = t0
+
+    while time.time() < deadline:
+        # Generate offspring from parents by mutation and intermediate recombination
+        offspring = []
+        offspring_fx = []
+
+        for _ in range(lam):
+            if time.time() >= deadline:
+                break
+
+            # pick two parents for recombination
+            a = random.randrange(len(parents))
+            b = random.randrange(len(parents))
+            pa = parents[a]
+            pb = parents[b]
+
+            # intermediate recombination
+            child = []
+            for j in range(dim):
+                w = random.random()
+                val = w * pa[j] + (1.0 - w) * pb[j]
+                child.append(val)
+
+            # gaussian mutation scaled per dimension
+            # jitter sigma slightly (log-normal) for self-adaptation
+            # keep it simple & stable
+            sigma *= math.exp(0.15 * randn())
+            if sigma < sigma_min:
+                sigma = sigma_min
+            elif sigma > sigma_max:
+                sigma = sigma_max
+
+            for j in range(dim):
+                child[j] += (sigma * spans[j]) * randn()
+
+            child = clamp_vec(child)
+            fchild = evaluate(child)
+
+            offspring.append(child)
+            offspring_fx.append(fchild)
+
+            # track global best and ES success stats
+            trials += 1
+            if fchild < best:
+                best = fchild
+                best_x = child
+                successes += 1
+
+        if not offspring:
+            break
+
+        # Select next parents: best mu among offspring + current parents (elitism)
+        # This improves stability on noisy/hard landscapes.
+        combined = parents + offspring
+        combined_fx = parents_fx + offspring_fx
+
+        # partial sort by fx (simple O(n log n) is fine for small n)
+        idx = list(range(len(combined)))
+        idx.sort(key=lambda i: combined_fx[i])
+
+        parents = [combined[i] for i in idx[:mu]]
+        parents_fx = [combined_fx[i] for i in idx[:mu]]
+
+        # 1/5th success rule adaptation every ""generation""
+        if trials >= lam:
+            rate = successes / float(trials) if trials > 0 else 0.0
+            # if success rate > 0.2 increase sigma, else decrease
+            if rate > 0.2:
+                sigma *= 1.15
+            else:
+                sigma *= 0.85
+            sigma = max(sigma_min, min(sigma_max, sigma))
+            successes = 0
+            trials = 0
+
+        # occasional local refinement around current best (time permitting)
+        now = time.time()
+        if now - last_refine_time > 0.25 and now < deadline:
+            # refine with step depending on sigma (smaller when already fine)
+            step_frac = max(1e-4, min(0.2, 0.5 * sigma))
+            xr, fr = local_refine(best_x, best, step_frac)
+            if fr < best:
+                best, best_x = fr, xr
+                # inject refined solution into parent pool
+                parents[0] = best_x
+                parents_fx[0] = best
+            last_refine_time = now
+
+    # return fitness of the best found solution
+    return best
+```";;;6d22abc2-74d6-42e5-8896-146ea3460731;{}

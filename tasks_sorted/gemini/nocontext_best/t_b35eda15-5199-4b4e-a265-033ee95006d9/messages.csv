@@ -1,0 +1,3675 @@
+time;tokens;role;text;path_solution_file;path_solution_metadata;id;metadata
+2026-02-25 09:07:38.367961+00:00;0;system;"Your task is to propose an algorithm to find a set of input parameter values that lead to minimum output value in a limited time. The template for the algorithm is given below. Deliver Python code that is fully operational and self-contained, requiring no external libraries or modifications post-delivery
+
+Glossary:
+func - function that returns output value (float) for an array of input parameter values (np.array).
+dim - (int) dimension of the input vector.
+bounds - (list) specified lower and upper bounds for the input vector values. A pair for each dimension.
+max_time - (int) maximum acceptable time in seconds to return a result.
+
+Template:
+
+def run(func, dim, bounds, max_time):
+
+    [Algorithm body]
+
+    # return fitness of the best found solution
+    return best
+
+Example implementation of a random search algorithm in the given template:
+
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+
+    # Algorithm body
+    while True:
+        passed_time = (datetime.now() - start)
+        if passed_time >= timedelta(seconds=max_time):
+            return best
+
+        params = [np.random.uniform(low, high) for low, high in bounds]
+        fitness = func(params)
+        if best is None or fitness <= best:
+            best = fitness
+        ";;;27301726-ff5c-4b7e-8662-d119e522b6c2;{}
+2026-02-25 09:07:38.368686+00:00;0;user;----;;;e8c9cb2f-35a2-4c45-b68e-9bb3556a38d9;{}
+2026-02-25 09:08:28.935347+00:00;6307;model;"Here is a fully operational, self-contained implementation using the **Differential Evolution** algorithm. 
+
+This algorithm is significantly more efficient than random search for finding global minima in continuous spaces. It evolves a population of candidate solutions by mixing them (mutation and crossover) to explore the search space and exploit promising areas, all while strictly adhering to the `max_time` constraint.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration for Differential Evolution ---
+    # Population size: Balance between exploration (high size) and speed (low size).
+    # We use a dynamic size capped at 50 to ensure the loop runs fast enough.
+    pop_size = max(10, dim * 2)
+    pop_size = min(pop_size, 50) 
+    
+    mutation_factor = 0.8  # Scaling factor for mutation (F)
+    crossover_prob = 0.9   # Probability of crossover (CR)
+
+    start = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    # Initialize best fitness found so far
+    best = float('inf')
+
+    # Convert bounds to numpy arrays for vectorized operations
+    min_b = np.array([b[0] for b in bounds])
+    max_b = np.array([b[1] for b in bounds])
+    diff_b = max_b - min_b
+
+    # --- Initialization Phase ---
+    # Create random initial population within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    fitness_scores = np.full(pop_size, float('inf'))
+
+    # Evaluate initial population
+    for i in range(pop_size):
+        # Time check inside initialization to prevent timeout on slow functions
+        if datetime.now() - start >= time_limit:
+            return best
+        
+        score = func(population[i])
+        fitness_scores[i] = score
+        
+        if score < best:
+            best = score
+
+    # --- Evolution Loop ---
+    while True:
+        # Check time at the start of every generation
+        if datetime.now() - start >= time_limit:
+            return best
+
+        for i in range(pop_size):
+            # Check time frequently (before every function evaluation)
+            if datetime.now() - start >= time_limit:
+                return best
+
+            # 1. Mutation: Select 3 distinct random agents (a, b, c) distinct from i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a_idx, b_idx, c_idx = np.random.choice(candidates, 3, replace=False)
+            
+            a = population[a_idx]
+            b = population[b_idx]
+            c = population[c_idx]
+
+            # Create mutant vector: v = a + F * (b - c)
+            mutant = a + mutation_factor * (b - c)
+
+            # 2. Crossover: Create trial vector by mixing mutant and target
+            rand_vals = np.random.rand(dim)
+            cross_points = rand_vals < crossover_prob
+            
+            # Ensure at least one dimension is swapped to introduce variation
+            j_rand = np.random.randint(0, dim)
+            cross_points[j_rand] = True
+            
+            trial = np.where(cross_points, mutant, population[i])
+
+            # 3. Boundary Constraint: Clip values to stay within bounds
+            trial = np.clip(trial, min_b, max_b)
+
+            # 4. Selection: Greedy approach
+            trial_fitness = func(trial)
+
+            # If trial is better, replace the individual in the population
+            if trial_fitness < fitness_scores[i]:
+                fitness_scores[i] = trial_fitness
+                population[i] = trial
+                
+                # Update global best found solution immediately
+                if trial_fitness < best:
+                    best = trial_fitness
+
+    # return fitness of the best found solution
+    return best
+```";;;b010aa94-7312-4429-b1a3-deb5018d028f;{}
+2026-02-25 09:23:29.183583+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 52.54430542115694
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using the **Differential Evolution** algorithm. 
+#
+#This algorithm is significantly more efficient than random search for finding global minima in continuous spaces. It evolves a population of candidate solutions by mixing them (mutation and crossover) to explore the search space and exploit promising areas, all while strictly adhering to the `max_time` constraint.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration for Differential Evolution ---
+    # Population size: Balance between exploration (high size) and speed (low size).
+    # We use a dynamic size capped at 50 to ensure the loop runs fast enough.
+    pop_size = max(10, dim * 2)
+    pop_size = min(pop_size, 50) 
+    
+    mutation_factor = 0.8  # Scaling factor for mutation (F)
+    crossover_prob = 0.9   # Probability of crossover (CR)
+
+    start = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    # Initialize best fitness found so far
+    best = float('inf')
+
+    # Convert bounds to numpy arrays for vectorized operations
+    min_b = np.array([b[0] for b in bounds])
+    max_b = np.array([b[1] for b in bounds])
+    diff_b = max_b - min_b
+
+    # --- Initialization Phase ---
+    # Create random initial population within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    fitness_scores = np.full(pop_size, float('inf'))
+
+    # Evaluate initial population
+    for i in range(pop_size):
+        # Time check inside initialization to prevent timeout on slow functions
+        if datetime.now() - start >= time_limit:
+            return best
+        
+        score = func(population[i])
+        fitness_scores[i] = score
+        
+        if score < best:
+            best = score
+
+    # --- Evolution Loop ---
+    while True:
+        # Check time at the start of every generation
+        if datetime.now() - start >= time_limit:
+            return best
+
+        for i in range(pop_size):
+            # Check time frequently (before every function evaluation)
+            if datetime.now() - start >= time_limit:
+                return best
+
+            # 1. Mutation: Select 3 distinct random agents (a, b, c) distinct from i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a_idx, b_idx, c_idx = np.random.choice(candidates, 3, replace=False)
+            
+            a = population[a_idx]
+            b = population[b_idx]
+            c = population[c_idx]
+
+            # Create mutant vector: v = a + F * (b - c)
+            mutant = a + mutation_factor * (b - c)
+
+            # 2. Crossover: Create trial vector by mixing mutant and target
+            rand_vals = np.random.rand(dim)
+            cross_points = rand_vals < crossover_prob
+            
+            # Ensure at least one dimension is swapped to introduce variation
+            j_rand = np.random.randint(0, dim)
+            cross_points[j_rand] = True
+            
+            trial = np.where(cross_points, mutant, population[i])
+
+            # 3. Boundary Constraint: Clip values to stay within bounds
+            trial = np.clip(trial, min_b, max_b)
+
+            # 4. Selection: Greedy approach
+            trial_fitness = func(trial)
+
+            # If trial is better, replace the individual in the population
+            if trial_fitness < fitness_scores[i]:
+                fitness_scores[i] = trial_fitness
+                population[i] = trial
+                
+                # Update global best found solution immediately
+                if trial_fitness < best:
+                    best = trial_fitness
+
+    # return fitness of the best found solution
+    return best
+
+
+";;;bd27984a-53a8-44f0-962e-2bd660164a49;{}
+2026-02-25 09:24:37.446327+00:00;8846;model;"Here is a fully operational, self-contained implementation using a **Restarted ""Current-to-Best"" Differential Evolution** algorithm.
+
+### Improvements over the previous Random/Standard DE:
+1.  **Current-to-Best Strategy:** Instead of mutating random vectors (which is slow to converge), this algorithm directs the search towards the best solution found so far while maintaining exploration. This significantly speeds up convergence.
+2.  **Restart Mechanism:** If the population converges (agents become too similar) and time remains, the algorithm saves the best solution and ""explodes"" the rest of the population to new random positions to find other potential global minima.
+3.  **Latin Hypercube Initialization:** Instead of pure random starting points, it uses stratified sampling to ensure the initial population covers the search space evenly.
+4.  **Dithered Parameters:** The mutation factor (`F`) and crossover probability (`CR`) are randomized slightly every generation to prevent the algorithm from getting stuck in search patterns.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: 
+    # A multiplier of 15x dim provides good coverage, clamped to keep speed high.
+    pop_size = int(np.clip(dim * 15, 20, 60))
+    
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+
+    # Convert bounds to numpy arrays for vectorized math
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Helper: Check if time is up
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization (Latin Hypercube Sampling) ---
+    # Ensures better initial coverage than pure random
+    # Generate stratified samples
+    rng = np.random.rand(pop_size, dim)
+    for d in range(dim):
+        rng[:, d] = (np.argsort(rng[:, d]) + np.random.rand(pop_size)) / pop_size
+    
+    population = min_b + rng * diff_b
+    fitness = np.full(pop_size, float('inf'))
+
+    best_val = float('inf')
+    best_vec = None
+    best_idx = -1
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+            best_idx = i
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population variance is too low (converged), restart to find new basins
+        # while keeping the elite (best) solution.
+        std_dev = np.std(fitness)
+        if std_dev < 1e-6:
+            # Re-initialize population randomly
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec # Keep the elite
+            fitness = np.full(pop_size, float('inf'))
+            fitness[0] = best_val
+            
+            # Re-evaluate new population (skip elite at index 0)
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+                    best_idx = i
+            continue
+
+        # 2. Dynamic Parameters (Dithering)
+        # Randomize F and CR slightly per generation to improve robustness
+        F = 0.5 + 0.4 * np.random.rand()  # Mutation factor [0.5, 0.9]
+        CR = 0.8 + 0.2 * np.random.rand() # Crossover prob [0.8, 1.0]
+
+        # 3. Evolution Cycle
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+
+            # Target: Current-to-Best Strategy
+            # V = Xi + F*(Best - Xi) + F*(r1 - r2)
+            # This balances greediness (move to best) with exploration (difference)
+            
+            idxs = [idx for idx in range(pop_size) if idx != i]
+            r1, r2 = np.random.choice(idxs, 2, replace=False)
+            
+            x_i = population[i]
+            x_best = best_vec
+            x_r1 = population[r1]
+            x_r2 = population[r2]
+
+            # Mutation
+            mutant = x_i + F * (x_best - x_i) + F * (x_r1 - x_r2)
+            
+            # Boundary Constraint (Clip)
+            mutant = np.clip(mutant, min_b, max_b)
+
+            # Crossover (Binomial)
+            cross_points = np.random.rand(dim) < CR
+            if not np.any(cross_points): 
+                # Ensure at least one parameter changes
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, x_i)
+
+            # Selection
+            f_trial = func(trial)
+
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial.copy()
+                    best_idx = i
+
+    return best_val
+```";;;0beb112a-093f-477b-8018-1315fe3b36fc;{}
+2026-02-25 09:39:37.692804+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 36.52968330496913
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Restarted ""Current-to-Best"" Differential Evolution** algorithm.
+#
+#### Improvements over the previous Random/Standard DE:
+#1.  **Current-to-Best Strategy:** Instead of mutating random vectors (which is slow to converge), this algorithm directs the search towards the best solution found so far while maintaining exploration. This significantly speeds up convergence.
+#2.  **Restart Mechanism:** If the population converges (agents become too similar) and time remains, the algorithm saves the best solution and ""explodes"" the rest of the population to new random positions to find other potential global minima.
+#3.  **Latin Hypercube Initialization:** Instead of pure random starting points, it uses stratified sampling to ensure the initial population covers the search space evenly.
+#4.  **Dithered Parameters:** The mutation factor (`F`) and crossover probability (`CR`) are randomized slightly every generation to prevent the algorithm from getting stuck in search patterns.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: 
+    # A multiplier of 15x dim provides good coverage, clamped to keep speed high.
+    pop_size = int(np.clip(dim * 15, 20, 60))
+    
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+
+    # Convert bounds to numpy arrays for vectorized math
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Helper: Check if time is up
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization (Latin Hypercube Sampling) ---
+    # Ensures better initial coverage than pure random
+    # Generate stratified samples
+    rng = np.random.rand(pop_size, dim)
+    for d in range(dim):
+        rng[:, d] = (np.argsort(rng[:, d]) + np.random.rand(pop_size)) / pop_size
+    
+    population = min_b + rng * diff_b
+    fitness = np.full(pop_size, float('inf'))
+
+    best_val = float('inf')
+    best_vec = None
+    best_idx = -1
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+            best_idx = i
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population variance is too low (converged), restart to find new basins
+        # while keeping the elite (best) solution.
+        std_dev = np.std(fitness)
+        if std_dev < 1e-6:
+            # Re-initialize population randomly
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec # Keep the elite
+            fitness = np.full(pop_size, float('inf'))
+            fitness[0] = best_val
+            
+            # Re-evaluate new population (skip elite at index 0)
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+                    best_idx = i
+            continue
+
+        # 2. Dynamic Parameters (Dithering)
+        # Randomize F and CR slightly per generation to improve robustness
+        F = 0.5 + 0.4 * np.random.rand()  # Mutation factor [0.5, 0.9]
+        CR = 0.8 + 0.2 * np.random.rand() # Crossover prob [0.8, 1.0]
+
+        # 3. Evolution Cycle
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+
+            # Target: Current-to-Best Strategy
+            # V = Xi + F*(Best - Xi) + F*(r1 - r2)
+            # This balances greediness (move to best) with exploration (difference)
+            
+            idxs = [idx for idx in range(pop_size) if idx != i]
+            r1, r2 = np.random.choice(idxs, 2, replace=False)
+            
+            x_i = population[i]
+            x_best = best_vec
+            x_r1 = population[r1]
+            x_r2 = population[r2]
+
+            # Mutation
+            mutant = x_i + F * (x_best - x_i) + F * (x_r1 - x_r2)
+            
+            # Boundary Constraint (Clip)
+            mutant = np.clip(mutant, min_b, max_b)
+
+            # Crossover (Binomial)
+            cross_points = np.random.rand(dim) < CR
+            if not np.any(cross_points): 
+                # Ensure at least one parameter changes
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, x_i)
+
+            # Selection
+            f_trial = func(trial)
+
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial.copy()
+                    best_idx = i
+
+    return best_val
+
+
+";;;ab16b6c7-75cc-4891-865c-16cf4d71ef90;{}
+2026-02-25 09:42:36.037975+00:00;15248;model;"Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (jDE) with Current-to-pBest Strategy and Restarts**.
+
+### Improvements over the previous algorithm:
+1.  **Current-to-pBest Mutation**: Instead of targeting the single best solution (which causes premature convergence), this strategy targets a random solution from the top `p%` (e.g., top 10%). This balances fast convergence with genetic diversity.
+2.  **Self-Adaptation (jDE)**: Mutation factor (`F`) and Crossover rate (`CR`) are not just randomized but **adapted** per individual. Successful parameters are inherited by the next generation, allowing the algorithm to ""learn"" the best search settings for the specific function landscape.
+3.  **Vectorized Operations**: Mutation and crossover trials are generated using Numpy vectorization for the entire population at once, significantly reducing interpretation overhead compared to looping inside Python.
+4.  **Robust Restart Mechanism**: The algorithm monitors both population diversity (standard deviation) and fitness stagnation. If the search stalls or converges to a local optimum, it triggers a full restart (keeping the global best safe) to explore new areas of the search space.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes func using Self-Adaptive Differential Evolution (jDE) 
+    with Current-to-pBest mutation and Restart mechanism.
+    """"""
+    # --- Configuration ---
+    start_time = datetime.now()
+    # Use 98% of available time to ensure we return safely before timeout
+    time_limit = timedelta(seconds=max_time * 0.98) 
+
+    # Population size: Adaptive based on dimension
+    # 10x-15x dim is standard, clamped to [20, 100] for speed/efficiency trade-off
+    pop_size = int(np.clip(10 * dim, 20, 100))
+    
+    # jDE Control Parameter Adaptation Settings
+    tau_F = 0.1   # Probability to update F
+    tau_CR = 0.1  # Probability to update CR
+    
+    # Pre-process bounds for vectorized math
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    global_best_val = float('inf')
+
+    # Helper: Check if time is almost up
+    def is_time_up():
+        return (datetime.now() - start_time) >= time_limit
+
+    # --- Main Optimization Loop (Outer Loop for Restarts) ---
+    while not is_time_up():
+        
+        # 1. Initialization: Latin Hypercube Sampling (LHS)
+        # Stratified sampling ensures better initial coverage than pure random
+        pop = np.zeros((pop_size, dim))
+        for d in range(dim):
+            # Create strata edges
+            edges = np.linspace(min_b[d], max_b[d], pop_size + 1)
+            # Sample uniformly within strata
+            samp = np.random.uniform(edges[:-1], edges[1:])
+            # Shuffle to mix dimensions
+            np.random.shuffle(samp)
+            pop[:, d] = samp
+            
+        # Initialize jDE parameters (F=0.5, CR=0.9 are standard starting points)
+        F = np.full(pop_size, 0.5)
+        CR = np.full(pop_size, 0.9)
+        fitness = np.full(pop_size, float('inf'))
+        
+        # Initial Evaluation
+        for i in range(pop_size):
+            if is_time_up(): return global_best_val
+            val = func(pop[i])
+            fitness[i] = val
+            if val < global_best_val:
+                global_best_val = val
+        
+        # --- Evolution Cycle (Inner Loop) ---
+        stall_counter = 0
+        gen_best = np.min(fitness)
+        
+        while not is_time_up():
+            # 2. Parameter Adaptation (jDE)
+            # Create trial parameters. If mask is True, generate new params, else keep old.
+            rand_F = np.random.rand(pop_size)
+            rand_CR = np.random.rand(pop_size)
+            
+            mask_F = np.random.rand(pop_size) < tau_F
+            mask_CR = np.random.rand(pop_size) < tau_CR
+            
+            # Temporary arrays for trial generation
+            F_trial = F.copy()
+            CR_trial = CR.copy()
+            
+            # F updates to [0.1, 1.0], CR updates to [0.0, 1.0]
+            F_trial[mask_F] = 0.1 + 0.9 * rand_F[mask_F]
+            CR_trial[mask_CR] = rand_CR[mask_CR]
+            
+            # 3. Mutation Strategy: Current-to-pBest/1 (Vectorized Preparation)
+            # Sort population by fitness to identify ""p-best""
+            sorted_idx = np.argsort(fitness)
+            
+            # Select p-best (top 10% of population, minimum 2 individuals)
+            p_limit = max(2, int(pop_size * 0.1))
+            top_p_idxs = sorted_idx[:p_limit]
+            
+            # Randomly select a pbest for each individual
+            pbest_idxs = np.random.choice(top_p_idxs, pop_size)
+            
+            # Select r1, r2 distinct from i
+            # (Fast approximate method with collision fix)
+            r1 = np.random.randint(0, pop_size, pop_size)
+            r2 = np.random.randint(0, pop_size, pop_size)
+            
+            # Fix collisions where r1==i, r2==i, or r1==r2
+            for k in range(pop_size):
+                while r1[k] == k: 
+                    r1[k] = np.random.randint(0, pop_size)
+                while r2[k] == k or r2[k] == r1[k]: 
+                    r2[k] = np.random.randint(0, pop_size)
+            
+            # Vector math for mutation
+            x_i = pop
+            x_pbest = pop[pbest_idxs]
+            x_r1 = pop[r1]
+            x_r2 = pop[r2]
+            
+            F_col = F_trial[:, np.newaxis]
+            
+            # Mutation Equation: V = Xi + F*(Xpbest - Xi) + F*(Xr1 - Xr2)
+            mutant = x_i + F_col * (x_pbest - x_i) + F_col * (x_r1 - x_r2)
+            
+            # Boundary Constraint (Clip)
+            mutant = np.clip(mutant, min_b, max_b)
+            
+            # 4. Crossover (Binomial)
+            CR_col = CR_trial[:, np.newaxis]
+            cross_mask = np.random.rand(pop_size, dim) < CR_col
+            # Forced primary parameter constraint (ensure at least 1 dim changes)
+            j_rand = np.random.randint(0, dim, pop_size)
+            cross_mask[np.arange(pop_size), j_rand] = True
+            
+            trial_pop = np.where(cross_mask, mutant, pop)
+            
+            # 5. Selection & Evaluation
+            for i in range(pop_size):
+                if is_time_up(): return global_best_val
+                
+                f_new = func(trial_pop[i])
+                
+                if f_new <= fitness[i]:
+                    fitness[i] = f_new
+                    pop[i] = trial_pop[i]
+                    # Success: adopt the trial parameters for next gen
+                    F[i] = F_trial[i]
+                    CR[i] = CR_trial[i]
+                    
+                    if f_new < global_best_val:
+                        global_best_val = f_new
+            
+            # 6. Restart Detection
+            current_gen_best = np.min(fitness)
+            # Check for improvement
+            if current_gen_best < gen_best:
+                gen_best = current_gen_best
+                stall_counter = 0
+            else:
+                stall_counter += 1
+                
+            # Calculate population diversity (normalized avg std dev)
+            std_metric = np.mean(np.std(pop, axis=0)) / np.mean(diff_b)
+            
+            # Trigger Restart if:
+            # a) Population has converged (low diversity)
+            # b) Best fitness hasn't improved for 30 generations (Stagnation)
+            if std_metric < 1e-4 or stall_counter > 30:
+                break 
+
+    return global_best_val
+```";;;ccf16439-0599-4cfd-a2a4-dea4527d0685;{}
+2026-02-25 09:57:18.273194+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 36.52968330496913
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Restarted ""Current-to-Best"" Differential Evolution** algorithm.
+#
+#### Improvements over the previous Random/Standard DE:
+#1.  **Current-to-Best Strategy:** Instead of mutating random vectors (which is slow to converge), this algorithm directs the search towards the best solution found so far while maintaining exploration. This significantly speeds up convergence.
+#2.  **Restart Mechanism:** If the population converges (agents become too similar) and time remains, the algorithm saves the best solution and ""explodes"" the rest of the population to new random positions to find other potential global minima.
+#3.  **Latin Hypercube Initialization:** Instead of pure random starting points, it uses stratified sampling to ensure the initial population covers the search space evenly.
+#4.  **Dithered Parameters:** The mutation factor (`F`) and crossover probability (`CR`) are randomized slightly every generation to prevent the algorithm from getting stuck in search patterns.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: 
+    # A multiplier of 15x dim provides good coverage, clamped to keep speed high.
+    pop_size = int(np.clip(dim * 15, 20, 60))
+    
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+
+    # Convert bounds to numpy arrays for vectorized math
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Helper: Check if time is up
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization (Latin Hypercube Sampling) ---
+    # Ensures better initial coverage than pure random
+    # Generate stratified samples
+    rng = np.random.rand(pop_size, dim)
+    for d in range(dim):
+        rng[:, d] = (np.argsort(rng[:, d]) + np.random.rand(pop_size)) / pop_size
+    
+    population = min_b + rng * diff_b
+    fitness = np.full(pop_size, float('inf'))
+
+    best_val = float('inf')
+    best_vec = None
+    best_idx = -1
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+            best_idx = i
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population variance is too low (converged), restart to find new basins
+        # while keeping the elite (best) solution.
+        std_dev = np.std(fitness)
+        if std_dev < 1e-6:
+            # Re-initialize population randomly
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec # Keep the elite
+            fitness = np.full(pop_size, float('inf'))
+            fitness[0] = best_val
+            
+            # Re-evaluate new population (skip elite at index 0)
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+                    best_idx = i
+            continue
+
+        # 2. Dynamic Parameters (Dithering)
+        # Randomize F and CR slightly per generation to improve robustness
+        F = 0.5 + 0.4 * np.random.rand()  # Mutation factor [0.5, 0.9]
+        CR = 0.8 + 0.2 * np.random.rand() # Crossover prob [0.8, 1.0]
+
+        # 3. Evolution Cycle
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+
+            # Target: Current-to-Best Strategy
+            # V = Xi + F*(Best - Xi) + F*(r1 - r2)
+            # This balances greediness (move to best) with exploration (difference)
+            
+            idxs = [idx for idx in range(pop_size) if idx != i]
+            r1, r2 = np.random.choice(idxs, 2, replace=False)
+            
+            x_i = population[i]
+            x_best = best_vec
+            x_r1 = population[r1]
+            x_r2 = population[r2]
+
+            # Mutation
+            mutant = x_i + F * (x_best - x_i) + F * (x_r1 - x_r2)
+            
+            # Boundary Constraint (Clip)
+            mutant = np.clip(mutant, min_b, max_b)
+
+            # Crossover (Binomial)
+            cross_points = np.random.rand(dim) < CR
+            if not np.any(cross_points): 
+                # Ensure at least one parameter changes
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, x_i)
+
+            # Selection
+            f_trial = func(trial)
+
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial.copy()
+                    best_idx = i
+
+    return best_val
+
+
+";;;b1897aaa-2f07-44d4-a1be-16b1c2ebb4e2;{}
+2026-02-25 09:58:53.264309+00:00;12865;model;"Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+
+### Improvements:
+1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+```";;;1fca12fe-fbc8-449a-96b7-1235f4554362;{}
+2026-02-25 10:13:53.499487+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 23.675869706249188
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+#
+#### Improvements:
+#1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+#2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+#3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+#4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+
+
+";;;edcdeb55-c1d8-41b2-8539-7c0c4d6f2dd2;{}
+2026-02-25 10:14:38.031811+00:00;7985;model;"Here is a fully operational, self-contained implementation of **L-SHADE with Linear Population Size Reduction (LPSR)**.
+
+### Why this is better than JADE:
+1.  **Linear Population Size Reduction (LPSR):** The algorithm starts with a large population to explore the global space and linearly reduces the population size over time. This forces the algorithm to switch from exploration to aggressive exploitation as time runs out, converging much tighter than a fixed-size population.
+2.  **History-Based Adaptation (L-SHADE):** Instead of a single mean for parameters $F$ and $CR$ (like JADE), this uses a memory archive of successful parameters. This allows the algorithm to recall multiple successful search strategies (e.g., one setting for exploring valleys, another for refining peaks).
+3.  **External Archive:** It maintains an archive of inferior solutions recently replaced. This preserves diversity in the mutation equation (`current-to-pbest/1` uses the archive for the difference vector), preventing premature convergence.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    L-SHADE with Linear Population Size Reduction (LPSR) implementation.
+    Minimizes a black-box function within a given time limit.
+    """"""
+    
+    # --- Helper Functions ---
+    def get_cauchy(loc, scale, size):
+        """"""Generates Cauchy distributed values: loc + scale * tan(pi * (rand - 0.5))""""""
+        return loc + scale * np.tan(np.pi * (np.random.rand(size) - 0.5))
+
+    def get_lehmer_mean(values):
+        """"""Calculates Lehmer Mean (efficient for F parameter adaptation)""""""
+        values = np.array(values)
+        numer = np.sum(values**2)
+        denom = np.sum(values)
+        return numer / denom if denom != 0 else 0
+
+    # --- Time Management ---
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # --- Initialization Parameters ---
+    # Initial population size: Start large for exploration
+    # Reduces linearly to min_pop_size (4)
+    r_init = 18 
+    pop_size = int(r_init * dim)
+    min_pop_size = 4
+    
+    # Initialize Population
+    bounds = np.array(bounds)
+    min_b, max_b = bounds[:, 0], bounds[:, 1]
+    diff_b = max_b - min_b
+    
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    fitness = np.array([float('inf')] * pop_size)
+    
+    # Evaluate initial population
+    best_val = float('inf')
+    best_vec = None
+    
+    # Evaluate initial batch
+    # We check time strictly here to ensure we don't overrun on slow functions
+    for i in range(pop_size):
+        if datetime.now() >= end_time:
+            # If we timeout during init, return best found so far
+            return best_val if best_vec is not None else float('inf')
+            
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+            
+    # --- L-SHADE Memory Initialization ---
+    memory_size = 5
+    # Memory for Mean CR (Crossover Rate) and Mean F (Scaling Factor)
+    m_cr = np.full(memory_size, 0.5) 
+    m_f = np.full(memory_size, 0.5)
+    k_mem = 0  # Memory index counter
+    
+    # External Archive (stores replaced individuals to maintain diversity)
+    archive = []
+    
+    # Maximum estimated evaluations (dynamic budget based on time is harder, 
+    # so we map PSR (Population Size Reduction) to Time Progress)
+    initial_pop_size = pop_size
+    
+    # --- Main Loop ---
+    while True:
+        # Check Time Progress
+        now = datetime.now()
+        if now >= end_time:
+            return best_val
+        
+        # Calculate progress ratio (0.0 to 1.0)
+        elapsed = (now - start_time).total_seconds()
+        progress = elapsed / max_time
+        
+        # --- 1. Linear Population Size Reduction (LPSR) ---
+        # Calculate target population size based on time progress
+        plan_pop_size = int(np.round((min_pop_size - initial_pop_size) * progress + initial_pop_size))
+        plan_pop_size = max(min_pop_size, plan_pop_size)
+        
+        # If current population is too big, reduce it by removing worst individuals
+        if pop_size > plan_pop_size:
+            n_reduce = pop_size - plan_pop_size
+            sorting_idx = np.argsort(fitness)
+            # Keep the best, discard the worst (at the end of sorted list)
+            keep_idx = sorting_idx[:plan_pop_size]
+            
+            population = population[keep_idx]
+            fitness = fitness[keep_idx]
+            pop_size = plan_pop_size
+            
+            # Resize archive if it exceeds new pop_size
+            if len(archive) > pop_size:
+                # Randomly remove elements from archive to match pop_size
+                import random
+                del archive[pop_size:]
+        
+        # --- 2. Parameter Generation ---
+        # Generate random indices to select from memory
+        r_idxs = np.random.randint(0, memory_size, pop_size)
+        
+        # Generate CR (Normal Distribution)
+        cr = np.random.normal(m_cr[r_idxs], 0.1)
+        cr = np.clip(cr, 0, 1)
+        
+        # Generate F (Cauchy Distribution)
+        f = get_cauchy(m_f[r_idxs], 0.1, pop_size)
+        f = np.clip(f, 0, 1) # Note: L-SHADE usually regenerates if <= 0, but clipping is faster/safer
+        
+        # --- 3. Mutation: current-to-pbest/1 ---
+        # Sort population to find p-best
+        sorted_indices = np.argsort(fitness)
+        
+        # p-best selection (top p% random)
+        p = max(2.0 / pop_size, 0.11) # p is typically 0.11 in L-SHADE
+        top_p_count = max(1, int(np.round(p * pop_size)))
+        pbest_indices = sorted_indices[:top_p_count]
+        
+        # Arrays for vectorization
+        pbest_idxs = np.random.choice(pbest_indices, pop_size)
+        r1_idxs = np.random.randint(0, pop_size, pop_size)
+        
+        # r2 is selected from Union(Population, Archive)
+        n_archive = len(archive)
+        n_union = pop_size + n_archive
+        r2_raw = np.random.randint(0, n_union, pop_size)
+        
+        # Prepare Union Matrix
+        if n_archive > 0:
+            union_pop = np.vstack((population, np.array(archive)))
+        else:
+            union_pop = population
+            
+        x_pbest = population[pbest_idxs]
+        x_r1 = population[r1_idxs]
+        x_r2 = union_pop[r2_raw]
+        
+        # Reshape f for broadcasting
+        f_col = f[:, np.newaxis]
+        
+        # Mutation Equation
+        mutant = population + f_col * (x_pbest - population) + f_col * (x_r1 - x_r2)
+        
+        # Boundary Handling (Bounce back if out of bounds, preserves distribution better than clip)
+        # Using simple clipping here for stability and speed
+        mutant = np.clip(mutant, min_b, max_b)
+        
+        # --- 4. Crossover (Binomial) ---
+        rand_j = np.random.randint(0, dim, pop_size)
+        mask = np.random.rand(pop_size, dim) <= cr[:, np.newaxis]
+        # Ensure at least one dimension is taken from mutant
+        mask[np.arange(pop_size), rand_j] = True
+        
+        trial_pop = np.where(mask, mutant, population)
+        
+        # --- 5. Selection & Memory Update ---
+        new_archive_candidates = []
+        success_f = []
+        success_cr = []
+        success_diff = []
+        
+        for i in range(pop_size):
+            if datetime.now() >= end_time:
+                return best_val
+            
+            t_val = func(trial_pop[i])
+            
+            if t_val < fitness[i]:
+                # Improvement found
+                # Add parent to archive candidates
+                new_archive_candidates.append(population[i].copy())
+                
+                # Record successful parameters
+                success_f.append(f[i])
+                success_cr.append(cr[i])
+                success_diff.append(fitness[i] - t_val)
+                
+                # Update Population
+                fitness[i] = t_val
+                population[i] = trial_pop[i]
+                
+                if t_val < best_val:
+                    best_val = t_val
+                    best_vec = trial_pop[i].copy()
+                    
+        # --- 6. Update Archive ---
+        if new_archive_candidates:
+            # Add new rejected parents to archive
+            archive.extend(new_archive_candidates)
+            # If archive too large, remove random elements
+            while len(archive) > pop_size:
+                archive.pop(np.random.randint(0, len(archive)))
+                
+        # --- 7. Update Historical Memory ---
+        if len(success_f) > 0:
+            success_f = np.array(success_f)
+            success_cr = np.array(success_cr)
+            success_diff = np.array(success_diff)
+            
+            # Weighted Lehmer Mean based on fitness improvement amount
+            weights = success_diff / np.sum(success_diff)
+            
+            # Update Memory F (Lehmer Mean)
+            mean_sq_f = np.sum(weights * (success_f**2))
+            mean_f = np.sum(weights * success_f)
+            lehmer_f = mean_sq_f / mean_f if mean_f > 0 else 0.5
+            
+            # Update Memory CR (Weighted Arithmetic Mean)
+            mean_cr = np.sum(weights * success_cr)
+            
+            # Update memory slot
+            m_f[k_mem] = lehmer_f
+            m_cr[k_mem] = mean_cr
+            
+            # Increment memory index
+            k_mem = (k_mem + 1) % memory_size
+
+    return best_val
+```";;;fa4a9ac8-fc6e-47b7-b72f-66d1ed323443;{}
+2026-02-25 10:29:38.264957+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 23.675869706249188
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+#
+#### Improvements:
+#1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+#2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+#3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+#4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+
+
+";;;40f7539b-307d-483c-8f02-b3f0fcd09220;{}
+2026-02-25 10:31:32.069469+00:00;16523;model;"The best generated algorithm code:
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implements SHADE (Success-History based Adaptive Differential Evolution) with an
+    External Archive and Restart mechanism.
+    
+    Improvements over standard DE:
+    1. Adaptive Parameters: Uses historical memory (H) to adapt Mutation (F) and Crossover (CR) 
+       parameters based on successful updates, weighted by fitness improvement.
+    2. External Archive: Preserves diversity by allowing mutation strategies to pull from 
+       previously discarded inferior solutions (current-to-pbest/1 with archive).
+    3. Restart Mechanism: Detects population stagnation (low variance) and resets the population
+       while keeping the elite solution to escape local optima.
+    """"""
+    
+    # --- Time Management ---
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    def check_time():
+        return (datetime.now() - start_time) >= time_limit
+
+    # --- Hyperparameters ---
+    # Population size: Compromise between exploration and speed. 
+    # SHADE typically uses 18*dim, clamped here for safety.
+    pop_size = int(np.clip(18 * dim, 30, 100))
+    archive_size = pop_size
+    
+    # Memory size for adaptive parameters
+    H = 6
+    
+    # --- Initialization ---
+    # Memory for F and CR (initialized to 0.5)
+    mem_cr = np.full(H, 0.5)
+    mem_f = np.full(H, 0.5)
+    k_mem = 0  # Index for memory update
+
+    # Process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Initialize Population
+    # Latin Hypercube Sampling-like or simple Random Uniform
+    pop = min_b + np.random.rand(pop_size, dim) * diff_b
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Archive (Empty initially)
+    archive = np.empty((0, dim))
+
+    # Global Best Tracking
+    best_val = float('inf')
+    best_vec = None
+
+    # --- Initial Evaluation ---
+    for i in range(pop_size):
+        if check_time(): return best_val
+        val = func(pop[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = pop[i].copy()
+
+    # --- Main Loop ---
+    while not check_time():
+        
+        # 1. Sort Population
+        # Required for 'current-to-pbest' to identify top performers
+        sorted_indices = np.argsort(fitness)
+        pop = pop[sorted_indices]
+        fitness = fitness[sorted_indices]
+        
+        # Sync best (index 0 is best due to sort)
+        if fitness[0] < best_val:
+            best_val = fitness[0]
+            best_vec = pop[0].copy()
+
+        # 2. Restart Mechanism
+        # Check for stagnation (variance of fitness or population spatial spread)
+        if np.std(fitness) < 1e-8 * (1 + abs(best_val)):
+            # Retain elite, randomize the rest
+            pop = min_b + np.random.rand(pop_size, dim) * diff_b
+            pop[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset Adaptive Memory
+            mem_cr.fill(0.5)
+            mem_f.fill(0.5)
+            archive = np.empty((0, dim))
+            
+            # Re-evaluate
+            for i in range(1, pop_size):
+                if check_time(): return best_val
+                val = func(pop[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = pop[i].copy()
+            continue
+
+        # 3. Parameter Generation
+        # Assign a memory slot index to each individual
+        r_idx = np.random.randint(0, H, pop_size)
+        mu_cr = mem_cr[r_idx]
+        mu_f = mem_f[r_idx]
+
+        # Generate CR ~ Normal(mu_cr, 0.1)
+        cr = np.random.normal(mu_cr, 0.1)
+        cr = np.clip(cr, 0, 1)
+
+        # Generate F ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy is loc=0, scale=1. We scale and shift.
+        f = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        f[f > 1] = 1.0  # Clamp upper
+        f[f <= 0] = 0.5 # Clamp lower (simple repair)
+
+        # 4. Mutation: current-to-pbest/1
+        # V = X_i + F * (X_pbest - X_i) + F * (X_r1 - X_r2)
+        
+        # Select p-best (top 10% to 20%)
+        p_val = 0.11
+        top_p = max(2, int(pop_size * p_val))
+        pbest_indices = np.random.randint(0, top_p, pop_size)
+        x_pbest = pop[pbest_indices]
+
+        # Select r1 (random from P)
+        r1_indices = np.random.randint(0, pop_size, pop_size)
+        x_r1 = pop[r1_indices]
+
+        # Select r2 (random from P U A)
+        if archive.shape[0] > 0:
+            # Union of population and archive
+            pop_archive = np.vstack((pop, archive))
+        else:
+            pop_archive = pop
+            
+        r2_indices = np.random.randint(0, pop_archive.shape[0], pop_size)
+        x_r2 = pop_archive[r2_indices]
+
+        # Compute Mutant Vectors (Vectorized)
+        f_col = f[:, np.newaxis]
+        # pop is sorted, but we apply mutation to the whole population array in order
+        mutants = pop + f_col * (x_pbest - pop) + f_col * (x_r1 - x_r2)
+
+        # 5. Crossover (Binomial)
+        rand_vals = np.random.rand(pop_size, dim)
+        mask = rand_vals < cr[:, np.newaxis]
+        # Ensure at least one parameter comes from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        mask[np.arange(pop_size), j_rand] = True
+        
+        trials = np.where(mask, mutants, pop)
+        
+        # Bound Constraints (Clipping)
+        trials = np.clip(trials, min_b, max_b)
+
+        # 6. Selection and Memory Update Prep
+        success_f = []
+        success_cr = []
+        improvement_diffs = []
+        new_archive_candidates = []
+
+        for i in range(pop_size):
+            if check_time(): return best_val
+            
+            # Evaluate trial vector
+            # Handle potential math errors in func nicely if needed, 
+            # but template assumes func handles valid inputs.
+            f_trial = func(trials[i])
+
+            # Greedy Selection
+            if f_trial <= fitness[i]:
+                # If it's an improvement (strict), record for memory and archive
+                if f_trial < fitness[i]:
+                    new_archive_candidates.append(pop[i].copy())
+                    success_f.append(f[i])
+                    success_cr.append(cr[i])
+                    improvement_diffs.append(fitness[i] - f_trial)
+                
+                # Replace parent
+                pop[i] = trials[i]
+                fitness[i] = f_trial
+                
+                # Update Global Best
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trials[i].copy()
+
+        # 7. Update Archive
+        if len(new_archive_candidates) > 0:
+            cands = np.array(new_archive_candidates)
+            if archive.shape[0] == 0:
+                archive = cands
+            else:
+                archive = np.vstack((archive, cands))
+            
+            # Resize if archive exceeds size limit
+            if archive.shape[0] > archive_size:
+                # Randomly remove excess
+                keep_indices = np.random.choice(archive.shape[0], archive_size, replace=False)
+                archive = archive[keep_indices]
+
+        # 8. Update Historical Memory (SHADE logic)
+        if len(improvement_diffs) > 0:
+            # Calculate weights based on fitness improvement amount
+            diffs = np.array(improvement_diffs)
+            weights = diffs / np.sum(diffs)
+            
+            s_f = np.array(success_f)
+            s_cr = np.array(success_cr)
+            
+            # Weighted Lehmer Mean for F
+            mean_f = np.sum(weights * (s_f ** 2)) / np.sum(weights * s_f)
+            
+            # Weighted Mean for CR
+            mean_cr = np.sum(weights * s_cr)
+            
+            # Update the memory slot
+            mem_f[k_mem] = mean_f
+            mem_cr[k_mem] = mean_cr
+            
+            # Increment memory pointer
+            k_mem = (k_mem + 1) % H
+
+    return best_val
+```";;;c709077d-630a-4a3f-97c9-fef67bf879f3;{}
+2026-02-25 10:46:32.314888+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 23.675869706249188
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+#
+#### Improvements:
+#1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+#2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+#3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+#4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+
+
+";;;2d7be787-a890-4f01-9460-32a97ea55e91;{}
+2026-02-25 10:47:22.252491+00:00;8594;model;"Here is a fully operational, self-contained implementation of **L-SHADE with Coordinate Descent (Hybrid Memetic Algorithm)**.
+
+### Improvements over the previous version:
+1.  **L-SHADE Architecture**: Instead of JADE's single moving average for parameters, this uses a **History Memory** ($H$) of successful parameters ($F$ and $CR$). This allows the algorithm to recall multiple successful search strategies simultaneously (e.g., some agents exploring with high $F$, others exploiting with low $F$).
+2.  **Linear Population Size Reduction (LPSR)**: The population size starts large to maximize exploration and linearly decreases over time. This shifts computational resources from exploration (early stage) to exploitation (late stage) significantly improving convergence speed.
+3.  **Hybrid Local Search (Coordinate Descent)**: Evolutionary algorithms are great at finding the ""basin"" of the global minimum but slow to refine the final decimals. This implementation injects a greedy **Coordinate Descent** step whenever a new global best is found, rapidly polishing the solution.
+4.  **Weighted Lehmer Mean**: Uses a more statistically robust method for updating parameter memories based on fitness improvement magnitude.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    L-SHADE (Linear Success-History Adaptive Differential Evolution) 
+    with Coordinate Descent Local Search.
+    """"""
+    
+    # --- Time Management ---
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    def get_progress():
+        """"""Returns normalized time progress (0.0 to 1.0)""""""
+        now = datetime.now()
+        elapsed = (now - start_time).total_seconds()
+        return min(1.0, elapsed / max_time)
+
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Configuration ---
+    # L-SHADE Population Sizing
+    # Start with a larger population for exploration, reduce to min_pop
+    r_N_init = 18 * dim 
+    r_N_min = 4
+    pop_size = r_N_init
+    
+    # Memory for Adaptive Parameters (History size H=5)
+    mem_size = 5
+    memory_sf = np.full(mem_size, 0.5) # Memory for Scaling Factor F
+    memory_scr = np.full(mem_size, 0.5) # Memory for Crossover Rate CR
+    mem_k = 0 # cyclic index for memory update
+
+    # --- Initialization ---
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # Latin Hypercube Sampling for initial population
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Best Solution Tracking
+    best_val = float('inf')
+    best_vec = np.zeros(dim)
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # Sort population by fitness
+    sorted_idx = np.argsort(fitness)
+    population = population[sorted_idx]
+    fitness = fitness[sorted_idx]
+
+    # --- Local Search Helper (Coordinate Descent) ---
+    def local_search(current_best_vec, current_best_val, step_size_ratio=0.01):
+        """"""
+        Greedy local search around the best solution. 
+        Only runs for a limited budget per invocation.
+        """"""
+        vec = current_best_vec.copy()
+        val = current_best_val
+        improved = False
+        
+        # Determine step size based on bounds
+        step = diff_b * step_size_ratio
+        
+        # Random permutation of dimensions to search
+        dims_to_search = np.random.permutation(dim)
+        
+        for d in dims_to_search:
+            if is_time_up(): break
+            
+            # Try moving positive direction
+            vec[d] += step[d]
+            # Clip
+            if vec[d] > max_b[d]: vec[d] = max_b[d]
+            
+            new_val = func(vec)
+            if new_val < val:
+                val = new_val
+                current_best_vec[d] = vec[d]
+                improved = True
+                continue # Greedy: Found improvement, move to next dim
+            
+            # Revert and try negative direction
+            vec[d] -= 2 * step[d] # Move to original - step
+            # Clip
+            if vec[d] < min_b[d]: vec[d] = min_b[d]
+            
+            new_val = func(vec)
+            if new_val < val:
+                val = new_val
+                current_best_vec[d] = vec[d]
+                improved = True
+            else:
+                # Revert change
+                vec[d] += step[d]
+                
+        return vec, val, improved
+
+    # --- Main Loop ---
+    while not is_time_up():
+        
+        # 1. Linear Population Size Reduction (LPSR)
+        # Calculate allowed population size based on time progress
+        progress = get_progress()
+        new_pop_size = int(round((r_N_min - r_N_init) * progress + r_N_init))
+        
+        if new_pop_size < pop_size:
+            # Shrink population (remove worst solutions, array is already sorted)
+            pop_size = new_pop_size
+            population = population[:pop_size]
+            fitness = fitness[:pop_size]
+        
+        # 2. Parameter Generation
+        # Select random memory index for each individual
+        r_idx = np.random.randint(0, mem_size, pop_size)
+        m_cr = memory_scr[r_idx]
+        m_f = memory_sf[r_idx]
+        
+        # Generate CR: Normal(mean=M_cr, std=0.1)
+        cr = np.random.normal(m_cr, 0.1)
+        cr = np.clip(cr, 0, 1)
+        
+        # Generate F: Cauchy(loc=M_f, scale=0.1)
+        # If F > 1 clamp to 1, if F <= 0 regenerate
+        f = m_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Handle F constraints vectorized
+        f[f > 1] = 1.0
+        # Retry logic for F <= 0 (simplified: clamp to small value)
+        f[f <= 0] = 0.5 
+
+        # 3. Mutation: current-to-pbest/1
+        # p_best rate also varies slightly to encourage exploitation late game
+        p_rate = max(2.0/pop_size, 0.2 * (1 - progress))
+        p_num = max(1, int(round(pop_size * p_rate)))
+        
+        # Choose pbest from top p% individuals
+        pbest_indices = np.random.randint(0, p_num, pop_size)
+        x_pbest = population[pbest_indices]
+        
+        # Choose r1, r2 distinct
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Current sorted population allows index 0 to be best.
+        # Vectorized mutation: V = Xi + F*(Xpbest - Xi) + F*(Xr1 - Xr2)
+        F_col = f[:, np.newaxis]
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 4. Crossover: Binomial
+        j_rand = np.random.randint(0, dim, pop_size)
+        mask = np.random.rand(pop_size, dim) < cr[:, np.newaxis]
+        mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(mask, mutants, population)
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 5. Selection
+        fitness_trial = np.zeros(pop_size)
+        
+        # To store successful parameters
+        good_cr = []
+        good_f = []
+        diff_fitness = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial_val = func(trial_pop[i])
+            fitness_trial[i] = f_trial_val
+            
+            fit_diff = fitness[i] - f_trial_val
+            
+            # Selection (Greedy)
+            if f_trial_val <= fitness[i]:
+                # Update individual
+                population[i] = trial_pop[i]
+                fitness[i] = f_trial_val
+                
+                # Check Global Best
+                if f_trial_val < best_val:
+                    best_val = f_trial_val
+                    best_vec = trial_pop[i].copy()
+                    
+                    # TRIGGER LOCAL SEARCH
+                    # If we found a new basin, refine it immediately
+                    ls_vec, ls_val, improved = local_search(best_vec, best_val, step_size_ratio=0.001)
+                    if improved:
+                        best_val = ls_val
+                        best_vec = ls_vec
+                        population[i] = ls_vec # Push refined back to pop
+                        fitness[i] = ls_val
+
+                # Store success info for adaptation
+                if fit_diff > 0:
+                    good_cr.append(cr[i])
+                    good_f.append(f[i])
+                    diff_fitness.append(fit_diff)
+        
+        # 6. Adaptive Parameter Update (Memory)
+        num_success = len(good_f)
+        if num_success > 0:
+            good_f = np.array(good_f)
+            good_cr = np.array(good_cr)
+            diff_fitness = np.array(diff_fitness)
+            
+            # Weighted Lehmer Mean for F
+            # Mean = sum(w * f^2) / sum(w * f)
+            total_diff = np.sum(diff_fitness)
+            if total_diff == 0: weights = np.ones(num_success) / num_success
+            else: weights = diff_fitness / total_diff
+            
+            mean_scr = np.sum(weights * good_cr)
+            
+            denom_f = np.sum(weights * good_f)
+            if denom_f == 0: mean_sf = 0.5
+            else: mean_sf = np.sum(weights * (good_f ** 2)) / denom_f
+            
+            # Update Memory (at index k)
+            memory_sf[mem_k] = mean_sf
+            memory_scr[mem_k] = mean_scr
+            
+            mem_k = (mem_k + 1) % mem_size
+            
+            # Sort population for next iteration (required for pbest logic)
+            sorted_idx = np.argsort(fitness)
+            population = population[sorted_idx]
+            fitness = fitness[sorted_idx]
+            
+            # Sync best_vec to ensure consistency
+            if fitness[0] < best_val:
+                best_val = fitness[0]
+                best_vec = population[0].copy()
+
+    return best_val
+```";;;9901cae6-c9ea-4132-bf4d-45111c24c01b;{}
+2026-02-25 11:02:22.502797+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 23.675869706249188
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+#
+#### Improvements:
+#1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+#2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+#3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+#4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+
+
+";;;efb5d283-8f9d-49ef-9eb3-7fe2c55295f7;{}
+2026-02-25 11:03:15.903029+00:00;8652;model;"Here is a fully operational, self-contained implementation of the **L-SHADE-E (Linear Population Size Reduction Success-History Adaptation Differential Evolution)** algorithm, adapted specifically for time-bound optimization.
+
+### Improvements over the previous JADE implementation:
+1.  **Linear Population Size Reduction (LPSR):** This is the most critical improvement for a fixed-time constraint. The algorithm starts with a large population to explore the global space and linearly reduces the population size as time elapses. This forces the algorithm to shift from exploration to intense exploitation (fine-tuning) exactly as the deadline approaches.
+2.  **Historical Memory (H):** Instead of a single mean for mutation/crossover, it maintains a history of successful parameters ($M_{CR}, M_F$). This allows the algorithm to recall different strategies that worked well for different stages of the optimization (e.g., high $F$ early on, low $F$ later).
+3.  **External Archive:** It preserves a set of recently replaced inferior solutions. These are used during mutation to maintain diversity without needing a huge active population.
+4.  **Weighted Parameter Updates:** Parameter updates are weighted by the magnitude of fitness improvement, giving more influence to parameter settings that produced significant jumps in performance.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    L-SHADE-E (Linear Population Size Reduction Success-History Adaptive DE)
+    Adapted for time-constrained optimization.
+    """"""
+    # --- Configuration ---
+    # Initial Population: Start high for exploration
+    p_init = int(round(18 * dim))
+    # Ensure starting population isn't too massive for slow functions, nor too small
+    p_init = np.clip(p_init, 30, 200) 
+    
+    # Minimum population for final exploitation
+    p_min = 4
+    
+    # Archive size (usually equal to initial population)
+    arc_rate = 1.4
+    arc_size = int(p_init * arc_rate)
+    
+    # Memory size for historical adaptation
+    h_mem = 5
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # --- Initialization ---
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # Population init (Random Uniform)
+    pop_size = p_init
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Evaluate Initial Population
+    best_val = float('inf')
+    best_vec = None
+    
+    for i in range(pop_size):
+        if datetime.now() >= end_time: return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+            
+    # --- L-SHADE Memory Initialization ---
+    # M_cr and M_f store historical successful means
+    mem_cr = np.full(h_mem, 0.5)
+    mem_f = np.full(h_mem, 0.5)
+    k_mem = 0  # Memory index pointer
+    
+    # Archive (External population)
+    archive = np.empty((0, dim))
+    
+    # --- Main Loop ---
+    while True:
+        # 1. Time Check & Progress Calculation
+        curr_time = datetime.now()
+        if curr_time >= end_time:
+            return best_val
+        
+        # Calculate progress ratio (0.0 to 1.0)
+        elapsed = (curr_time - start_time).total_seconds()
+        progress = min(1.0, elapsed / max_time)
+        
+        # 2. Linear Population Size Reduction (LPSR)
+        # Linearly decay population size from p_init to p_min based on time
+        plan_pop_size = int(round((p_min - p_init) * progress + p_init))
+        
+        if pop_size > plan_pop_size:
+            # Reduction needed: Delete worst individuals
+            n_remove = pop_size - plan_pop_size
+            # argsort ascends, so worst (highest fitness) are at the end
+            sort_idx = np.argsort(fitness)
+            # Keep top 'plan_pop_size'
+            keep_idx = sort_idx[:plan_pop_size]
+            
+            population = population[keep_idx]
+            fitness = fitness[keep_idx]
+            pop_size = plan_pop_size
+            
+            # Ensure archive doesn't grow indefinitely if pop shrinks
+            curr_arc_limit = int(pop_size * arc_rate)
+            if len(archive) > curr_arc_limit:
+                # Randomly remove excess from archive
+                keep_arc = np.random.choice(len(archive), curr_arc_limit, replace=False)
+                archive = archive[keep_arc]
+
+        # 3. Sort for current-to-pbest
+        # We need the population sorted to pick the top p-best vectors
+        sort_idx = np.argsort(fitness)
+        population = population[sort_idx]
+        fitness = fitness[sort_idx]
+        
+        # Sync best (index 0 after sort is current best)
+        if fitness[0] < best_val:
+            best_val = fitness[0]
+            best_vec = population[0].copy()
+            
+        # 4. Generate Parameters (F and CR)
+        # Select random memory slot for each individual
+        r_idx = np.random.randint(0, h_mem, pop_size)
+        m_cr_selected = mem_cr[r_idx]
+        m_f_selected = mem_f[r_idx]
+        
+        # Generate CR ~ Normal(M_cr, 0.1)
+        cr = np.random.normal(m_cr_selected, 0.1)
+        cr = np.clip(cr, 0, 1)
+        # Special case: if M_cr is terminal value -1 (rarely used here), keep fixed
+        
+        # Generate F ~ Cauchy(M_f, 0.1)
+        # Cauchy: loc + scale * tan(uniform) or using standard_cauchy
+        f = m_f_selected + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Check constraints for F
+        # If F > 1, clamp to 1. If F <= 0, regenerate until > 0
+        # Vectorized regeneration for F <= 0
+        bad_f_idx = np.where(f <= 0)[0]
+        while len(bad_f_idx) > 0:
+            m_f_retry = m_f_selected[bad_f_idx]
+            f[bad_f_idx] = m_f_retry + 0.1 * np.random.standard_cauchy(len(bad_f_idx))
+            bad_f_idx = np.where(f <= 0)[0]
+        f = np.clip(f, 0, 1)
+        
+        # 5. Mutation: current-to-pbest/1 (with Archive)
+        # V = X + F*(X_pbest - X) + F*(X_r1 - X_r2)
+        # X_r2 is selected from Union(Population, Archive)
+        
+        # p-best selection: top p percent (randomly chosen from top)
+        # p reduces linearly from 0.2 to 0.05 to encourage convergence
+        # or fixed p_rate = 2/pop_size is common in L-SHADE. Let's use adaptive p.
+        p_val = max(2.0/pop_size, 0.2 * (1 - progress))
+        p_num = max(1, int(round(pop_size * p_val)))
+        
+        pbest_indices = np.random.randint(0, p_num, pop_size) # Indices into sorted population
+        x_pbest = population[pbest_indices]
+        
+        # r1: Random from population (distinct from current i ideally, ignored for speed)
+        r1_indices = np.random.randint(0, pop_size, pop_size)
+        x_r1 = population[r1_indices]
+        
+        # r2: Random from Union(Pop, Archive)
+        n_arc = len(archive)
+        union_size = pop_size + n_arc
+        r2_indices = np.random.randint(0, union_size, pop_size)
+        
+        # Build union matrix
+        if n_arc > 0:
+            union_pop = np.vstack((population, archive))
+        else:
+            union_pop = population
+            
+        x_r2 = union_pop[r2_indices]
+        
+        # Compute Mutation Vectors
+        f_col = f[:, np.newaxis]
+        v = population + f_col * (x_pbest - population) + f_col * (x_r1 - x_r2)
+        
+        # 6. Crossover (Binomial)
+        # Mask: True if crossover happens
+        rand_j = np.random.rand(pop_size, dim)
+        mask = rand_j < cr[:, np.newaxis]
+        
+        # Force at least one dimension
+        j_rand = np.random.randint(0, dim, pop_size)
+        mask[np.arange(pop_size), j_rand] = True
+        
+        u = np.where(mask, v, population)
+        
+        # Bound Constraints (Reflection/Clamping)
+        # Simple clamping
+        u = np.clip(u, min_b, max_b)
+        
+        # 7. Selection & Memory Update
+        fitness_u = np.empty(pop_size)
+        
+        succ_scr = [] # Successful CR
+        succ_sf = []  # Successful F
+        diff_f = []   # Fitness Improvements
+        
+        # Evaluate off-loop to check time frequently
+        for i in range(pop_size):
+            if datetime.now() >= end_time: return best_val
+            
+            y = func(u[i])
+            fitness_u[i] = y
+            
+            if y < fitness[i]:
+                # Success!
+                # 1. Add replaced parent to archive
+                if len(archive) < int(pop_size * arc_rate):
+                    archive = np.vstack((archive, population[i])) if len(archive) > 0 else np.array([population[i]])
+                else:
+                    # Archive full: Replace random
+                    if len(archive) > 0:
+                        arc_idx = np.random.randint(0, len(archive))
+                        archive[arc_idx] = population[i]
+                
+                # 2. Record memory data
+                diff = fitness[i] - y
+                succ_scr.append(cr[i])
+                succ_sf.append(f[i])
+                diff_f.append(diff)
+                
+                # 3. Update Population
+                population[i] = u[i]
+                fitness[i] = y
+                
+                if y < best_val:
+                    best_val = y
+                    best_vec = u[i].copy()
+                    
+        # 8. Update Historical Memory
+        if len(succ_scr) > 0:
+            succ_scr = np.array(succ_scr)
+            succ_sf = np.array(succ_sf)
+            diff_f = np.array(diff_f)
+            
+            # Weights based on fitness improvement
+            total_diff = np.sum(diff_f)
+            if total_diff == 0:
+                weights = np.ones(len(diff_f)) / len(diff_f)
+            else:
+                weights = diff_f / total_diff
+            
+            # Weighted Lehmer Mean for F
+            # mean = sum(w * f^2) / sum(w * f)
+            denom = np.sum(weights * succ_sf)
+            if denom == 0:
+                mean_f = 0.5
+            else:
+                mean_f = np.sum(weights * (succ_sf ** 2)) / denom
+            
+            # Weighted Mean for CR
+            mean_cr = np.sum(weights * succ_scr)
+            
+            # Update Memory slot (k_mem)
+            mem_f[k_mem] = mean_f
+            mem_cr[k_mem] = mean_cr
+            
+            # Increment/Cycle Memory pointer
+            k_mem = (k_mem + 1) % h_mem
+            
+    return best_val
+```";;;04e4bc49-4c81-43fa-b148-529e7092dad3;{}
+2026-02-25 11:18:16.145406+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 23.675869706249188
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+#
+#### Improvements:
+#1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+#2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+#3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+#4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+
+
+";;;2110394b-dcf6-4bdb-8d5f-901972415b92;{}
+2026-02-25 11:19:08.562892+00:00;8610;model;"Here is a fully operational, self-contained implementation of the **L-SHADE algorithm (Linear Success-History based Adaptive Differential Evolution) with an External Archive**.
+
+### Improvements over the previous JADE implementation:
+
+1.  **Linear Population Size Reduction (LPR):** The algorithm starts with a large population to maximize exploration and linearly reduces the population size over time. This forces the algorithm to shift from exploration to exploitation naturally as time runs out, dramatically improving convergence speed in the final stages.
+2.  **Historical Memory ($H$):** Instead of simple running averages for mutation/crossover parameters, this algorithm maintains a history of successful parameter sets. This allows the algorithm to ""remember"" different search strategies that worked in specific phases of optimization (e.g., high mutation early, low mutation late).
+3.  **External Archive:** Rejected solutions (those replaced by better offspring) are stored in a limited-size archive. The mutation operator draws vectors from both the current population *and* this archive. This maintains diversity without slowing down convergence, preventing stagnation in local optima.
+4.  **Weighted Lehmer Mean:** Parameter updates use fitness-weighted means, giving more influence to parameter settings that resulted in larger fitness improvements.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    L-SHADE Implementation: Linear Success-History Adaptive Differential Evolution
+    with External Archive and Linear Population Reduction.
+    """"""
+    
+    # --- Time Management ---
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+
+    def get_remaining_ratio():
+        """"""Returns 0.0 to 1.0 representing time progress.""""""
+        now = datetime.now()
+        if now >= end_time:
+            return 0.0
+        total_seconds = max_time
+        elapsed = (now - start_time).total_seconds()
+        return max(0.0, 1.0 - (elapsed / total_seconds))
+
+    # --- Configuration ---
+    # Initial Population: Start larger to explore, shrink later
+    # L-SHADE typically suggests N_init around 18 * dim
+    pop_size_init = int(round(18 * dim))
+    # Clip specific bounds for performance safety
+    pop_size_init = np.clip(pop_size_init, 30, 200) 
+    pop_size_min = 4
+    
+    pop_size = pop_size_init
+    
+    # Memory for adaptive parameters (History size H)
+    memory_size = 5 
+    mem_idx = 0
+    m_cr = np.full(memory_size, 0.5) # Memory for Crossover Rate
+    m_f = np.full(memory_size, 0.5)  # Memory for Mutation Factor
+    
+    # External Archive (stores rejected solutions to maintain diversity)
+    archive = []
+    archive_factor = 2.0 # Archive size relative to pop_size
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # --- Initialization ---
+    # Latin Hypercube Sampling for initial population
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Global Best Tracking
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if datetime.now() >= end_time:
+            return best_val if best_val != float('inf') else float('inf')
+            
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while True:
+        # Check time
+        time_ratio = get_remaining_ratio()
+        if time_ratio <= 0:
+            return best_val
+
+        # 1. Linear Population Size Reduction (LPR)
+        # Calculate target population size based on time remaining
+        plan_pop_size = int(round((pop_size_min - pop_size_init) * (1 - time_ratio) + pop_size_init))
+        
+        if pop_size > plan_pop_size:
+            # Sort by fitness
+            sorted_indices = np.argsort(fitness)
+            fitness = fitness[sorted_indices]
+            population = population[sorted_indices]
+            
+            # Truncate population (remove worst)
+            reduction_amt = pop_size - plan_pop_size
+            # Limit reduction to prevent removing too many at once if time skips
+            if reduction_amt > 0:
+                pop_size = plan_pop_size
+                population = population[:pop_size]
+                fitness = fitness[:pop_size]
+                
+                # Resize archive to match new pop_size * factor
+                max_archive_size = int(pop_size * archive_factor)
+                if len(archive) > max_archive_size:
+                    # Randomly remove elements from archive to shrink it
+                    del_indices = np.random.choice(len(archive), len(archive) - max_archive_size, replace=False)
+                    # Use list comprehension for safe removal
+                    archive = [arr for idx, arr in enumerate(archive) if idx not in del_indices]
+
+        # 2. Sort population (needed for current-to-pbest)
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Sync best (index 0 after sort)
+        if fitness[0] < best_val:
+            best_val = fitness[0]
+            best_vec = population[0].copy()
+
+        # 3. Generate Parameters based on History
+        # Randomly select a memory index for each individual
+        r_indices = np.random.randint(0, memory_size, pop_size)
+        mu_cr = m_cr[r_indices]
+        mu_f = m_f[r_indices]
+        
+        # Generate CR (Normal Distribution)
+        # cr ~ N(mu_cr, 0.1), clipped [0, 1]
+        cr_vals = np.random.normal(mu_cr, 0.1)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        # Inherit -1 handling from standard L-SHADE (if CR=-1, set to 0, usually rare with clip)
+
+        # Generate F (Cauchy Distribution)
+        # f ~ Cauchy(mu_f, 0.1)
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Handle F constraints
+        # If F > 1, cap at 1. If F <= 0, regenerate until > 0 (or clamp)
+        # For efficiency, we just clamp low to 0.1 to ensure mutation occurs
+        f_vals = np.clip(f_vals, 0.1, 1.0)
+
+        # 4. Mutation: current-to-pbest/1 (with Archive)
+        # V = Xi + F*(Xpbest - Xi) + F*(Xr1 - Xr2)
+        
+        # p-best selection: top p% members (p varies from 0.05 to 0.2 depending on implementation)
+        p_val = max(2, int(pop_size * 0.11)) # Top 11%
+        pbest_indices = np.random.randint(0, p_val, pop_size)
+        x_pbest = population[pbest_indices]
+        
+        # r1 selection: random from population (distinct from i)
+        # Simplified: random from pop
+        r1_indices = np.random.randint(0, pop_size, pop_size)
+        x_r1 = population[r1_indices]
+        
+        # r2 selection: random from Union(Population, Archive)
+        # Combine current population and archive for the second difference vector
+        if len(archive) > 0:
+            archive_np = np.array(archive)
+            combined_pool = np.vstack((population, archive_np))
+        else:
+            combined_pool = population
+            
+        r2_indices = np.random.randint(0, len(combined_pool), pop_size)
+        x_r2 = combined_pool[r2_indices]
+        
+        # Calculate Mutation Vectors
+        f_col = f_vals[:, np.newaxis]
+        mutants = population + f_col * (x_pbest - population) + f_col * (x_r1 - x_r2)
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        # Force at least one dimension
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trials = np.where(cross_mask, mutants, population)
+        
+        # Boundary Correction: Midpoint handling
+        # Instead of clipping, if a value exceeds bounds, move it to (bound + old)/2
+        # This preserves diversity better than hard clipping.
+        lower_viol = trials < min_b
+        upper_viol = trials > max_b
+        
+        # If violates lower: (min_b + old) / 2
+        trials[lower_viol] = (min_b[np.where(lower_viol)[1]] + population[lower_viol]) / 2.0
+        # If violates upper: (max_b + old) / 2
+        trials[upper_viol] = (max_b[np.where(upper_viol)[1]] + population[upper_viol]) / 2.0
+        
+        # 6. Selection & Memory Update
+        success_f = []
+        success_cr = []
+        diff_fitness = []
+        
+        # Evaluate Offspring
+        # We loop here to check time frequently
+        for i in range(pop_size):
+            if datetime.now() >= end_time:
+                return best_val
+            
+            t_fit = func(trials[i])
+            
+            # Greedy Selection
+            if t_fit <= fitness[i]: # Better or equal
+                # Success
+                if t_fit < fitness[i]:
+                    # Keep removed solution in archive
+                    archive.append(population[i].copy())
+                    
+                    # Record for adaptive update
+                    success_f.append(f_vals[i])
+                    success_cr.append(cr_vals[i])
+                    diff_fitness.append(fitness[i] - t_fit)
+                
+                # Update population
+                fitness[i] = t_fit
+                population[i] = trials[i]
+                
+                if t_fit < best_val:
+                    best_val = t_fit
+                    best_vec = trials[i].copy()
+                    
+        # Maintain Archive Size
+        max_archive_size = int(pop_size * archive_factor)
+        while len(archive) > max_archive_size:
+            # Remove random elements if archive overflows
+            idx_remove = np.random.randint(0, len(archive))
+            archive.pop(idx_remove)
+            
+        # 7. Update History Memory (Weighted Lehmer Mean)
+        if len(success_f) > 0:
+            s_f = np.array(success_f)
+            s_cr = np.array(success_cr)
+            d_fit = np.array(diff_fitness)
+            
+            # Weights based on fitness improvement
+            total_imp = np.sum(d_fit)
+            if total_imp > 0:
+                weights = d_fit / total_imp
+            else:
+                weights = np.ones(len(d_fit)) / len(d_fit)
+            
+            # Update Memory for F (Lehmer Mean)
+            # mean = sum(w * f^2) / sum(w * f)
+            numer_f = np.sum(weights * (s_f ** 2))
+            denom_f = np.sum(weights * s_f)
+            new_f = numer_f / (denom_f + 1e-10)
+            
+            # Update Memory for CR (Weighted Mean)
+            new_cr = np.sum(weights * s_cr)
+            
+            # Update the specific memory slot
+            # If current memory is 'empty' (-1 or default), replace strictly
+            # otherwise, blend slightly (though SHADE usually strictly replaces)
+            m_f[mem_idx] = new_f
+            m_cr[mem_idx] = new_cr
+            
+            # Rotate index
+            mem_idx = (mem_idx + 1) % memory_size
+            
+            # Ensure CR memory is valid (sometimes mean can drift close to 0 or 1)
+            m_cr = np.clip(m_cr, 0, 1)
+            m_f = np.clip(m_f, 0, 1) # F is typically kept around 0.5, but let it adapt
+
+    return best_val
+```";;;df4d0693-fc5e-4a98-83c5-c2b4637e412c;{}
+2026-02-25 11:34:08.805607+00:00;0;user;"Improve.
+The output value of the best generated algorithm is: 23.675869706249188
+
+ The best generated algorithm code:
+#Here is a fully operational, self-contained implementation using a **Self-Adaptive Differential Evolution (JADE variant) with Restart**.
+#
+#### Improvements:
+#1.  **Adaptive Parameters (JADE Strategy):** Instead of fixed or randomly dithered parameters, this algorithm ""learns"" the best mutation factor ($F$) and crossover rate ($CR$) over time. It maintains averages ($\mu_F, \mu_{CR}$) and updates them based on successful mutations that improved fitness.
+#2.  **Current-to-pBest Mutation:** It directs agents towards the top $p\%$ of the population (not just the single best). This balances convergence speed with population diversity better than the standard ""current-to-best"".
+#3.  **Adaptive Restart:** Detects stagnation by monitoring fitness variance. If the population converges to a local optimum, it triggers a restart, keeping the best solution found so far (elite) to ensure monotonic improvement.
+#4.  **Vectorized Operations:** Optimizes math operations using NumPy broadcasting for speed, allowing more generations within the time limit.
+#
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    # --- Configuration ---
+    # Population size: Standard is 10*dim. 
+    # Clipped between 20 and 75 to ensure speed on expensive functions while maintaining diversity.
+    pop_size = int(np.clip(10 * dim, 20, 75))
+    
+    # Time Management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- Adaptive Parameters (JADE) ---
+    mu_f = 0.5      # Initial mean for Mutation Factor
+    mu_cr = 0.5     # Initial mean for Crossover Rate
+    c_rate = 0.1    # Learning rate for parameter updates
+    p_best = 0.05   # Top 5% used for current-to-pbest mutation
+
+    # Helper: Check time
+    def is_time_up():
+        return datetime.now() >= end_time
+
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Stratified sampling for better initial coverage of the search space
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Tracking the Global Best
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial Evaluation
+    for i in range(pop_size):
+        if is_time_up(): return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # --- Main Optimization Loop ---
+    while not is_time_up():
+        
+        # 1. Restart Mechanism
+        # If population diversity (std dev) is too low, we are likely stuck.
+        # Restart population but keep the elite solution.
+        std_fit = np.std(fitness)
+        if std_fit < 1e-8 * (abs(best_val) + 1e-5):
+            # Keep elite
+            population = min_b + np.random.rand(pop_size, dim) * diff_b
+            population[0] = best_vec
+            fitness[:] = float('inf')
+            fitness[0] = best_val
+            
+            # Reset adaptive memory to encourage exploration
+            mu_f, mu_cr = 0.5, 0.5
+            
+            # Re-evaluate new random agents
+            for i in range(1, pop_size):
+                if is_time_up(): return best_val
+                val = func(population[i])
+                fitness[i] = val
+                if val < best_val:
+                    best_val = val
+                    best_vec = population[i].copy()
+            continue
+
+        # 2. Sort Population
+        # Necessary for 'current-to-pbest' to find the top p%
+        sorted_idx = np.argsort(fitness)
+        population = population[sorted_idx]
+        fitness = fitness[sorted_idx]
+        
+        # Ensure best_vec is synced (index 0 is best)
+        best_vec = population[0].copy()
+        best_val = fitness[0]
+
+        # 3. Parameter Generation
+        # CR_i ~ Normal(mu_cr, 0.1)
+        cr_vals = np.random.normal(mu_cr, 0.1, pop_size)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        
+        # F_i ~ Cauchy(mu_f, 0.1)
+        # Standard Cauchy (loc=0, scale=1) -> loc + scale * sample
+        f_vals = mu_f + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Constraint handling for F
+        f_vals[f_vals > 1] = 1.0
+        # For F <= 0, we can regenerate or clamp. Clamping to 0.1 keeps mutation active.
+        f_vals[f_vals <= 0] = 0.1
+
+        # 4. Mutation: DE/current-to-pbest/1
+        # V = Xi + F * (X_pbest - Xi) + F * (X_r1 - X_r2)
+        
+        # Select X_pbest from top p%
+        top_n = max(1, int(pop_size * p_best))
+        pbest_idxs = np.random.randint(0, top_n, pop_size)
+        x_pbest = population[pbest_idxs]
+        
+        # Select r1, r2 (random indices)
+        # Note: Collision with i is possible but ignored for vectorization speed.
+        r1 = np.random.randint(0, pop_size, pop_size)
+        r2 = np.random.randint(0, pop_size, pop_size)
+        
+        # Compute Mutation Vectors
+        # Reshape F for broadcasting (N, 1)
+        F_col = f_vals[:, np.newaxis]
+        
+        # Vectorized mutation equation
+        # current is population itself (sorted)
+        mutants = population + F_col * (x_pbest - population) + F_col * (population[r1] - population[r2])
+        
+        # 5. Crossover (Binomial)
+        rand_matrix = np.random.rand(pop_size, dim)
+        cross_mask = rand_matrix < cr_vals[:, np.newaxis]
+        
+        # Ensure at least one dimension is taken from mutant
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Boundary constraints
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # 6. Selection and Parameter Adaptation
+        successful_f = []
+        successful_cr = []
+        
+        for i in range(pop_size):
+            if is_time_up(): return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection: if trial is better or equal, replace parent
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Record successful parameters
+                successful_f.append(f_vals[i])
+                successful_cr.append(cr_vals[i])
+                
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+        
+        # 7. Update Adaptive Means
+        if len(successful_f) > 0:
+            sf = np.array(successful_f)
+            scr = np.array(successful_cr)
+            
+            # Update mu_cr (Arithmetic Mean)
+            mu_cr = (1 - c_rate) * mu_cr + c_rate * np.mean(scr)
+            
+            # Update mu_f (Lehmer Mean: sum(x^2)/sum(x))
+            denom = np.sum(sf)
+            if denom == 0: denom = 1e-10
+            mean_lehmer = np.sum(sf**2) / denom
+            mu_f = (1 - c_rate) * mu_f + c_rate * mean_lehmer
+
+    return best_val
+
+
+";;;c8085213-ba75-4455-8775-730ff831013e;{}
+2026-02-25 11:34:55.555497+00:00;8113;model;"To improve upon the JADE algorithm, we will implement **L-SHADE (Success-History based Adaptive Differential Evolution with Linear Population Size Reduction)**.
+
+**Why this is better:**
+1.  **Linear Population Size Reduction (LPSR):** The previous algorithm used a fixed population size. L-SHADE starts with a large population (to explore the global landscape) and linearly reduces the population size as time progresses. This forces the algorithm to shift from **Exploration** to **Exploitation**, converging much tighter on the minimum in the final stages.
+2.  **External Archive:** It utilizes an archive of inferior solutions recently replaced. This preserves diversity information without needing to re-evaluate them, allowing for more robust mutation directions.
+3.  **Historical Memory:** Instead of a single moving average for parameters $F$ and $C_r$, L-SHADE maintains a history memory ($H$). This prevents a single outlier generation from distorting the adaptation process.
+
+Here is the fully operational, self-contained Python code:
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Implementation of L-SHADE (Linear Success-History Adaptive Differential Evolution).
+    Features:
+    1. LPSR: Linearly reduces population size over time to shift from exploration to exploitation.
+    2. External Archive: Uses rejected parents to maintain diversity in mutation.
+    3. Historical Memory: Adapts F and Cr parameters based on a history of success.
+    """"""
+    
+    # --- Configuration ---
+    # Initial Population size (Starting high for exploration)
+    # R_Ninit is typically 18, but we cap it for very high dimensions to stay within time limits
+    N_init = int(round(max(20, 18 * dim)))
+    if N_init > 500: N_init = 500
+    
+    # Minimum population size (Ending low for exploitation)
+    N_min = 4 
+    
+    # History memory size
+    H = 6
+    
+    # Time management
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Pre-process bounds
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # --- State Variables ---
+    pop_size = N_init
+    # Memory for adaptive parameters (M_CR, M_F) initialized to 0.5
+    mem_cr = np.full(H, 0.5)
+    mem_f = np.full(H, 0.5)
+    k_mem = 0  # Memory index pointer
+    
+    # Archive for inferior solutions (starts empty)
+    archive = []
+    
+    # --- Initialization: Latin Hypercube Sampling ---
+    # Ensures grid-like coverage of the space initially
+    population = np.empty((pop_size, dim))
+    for d in range(dim):
+        edges = np.linspace(0, 1, pop_size + 1)
+        offsets = np.random.uniform(edges[:-1], edges[1:])
+        np.random.shuffle(offsets)
+        population[:, d] = min_b[d] + offsets * diff_b[d]
+        
+    fitness = np.full(pop_size, float('inf'))
+    
+    # Evaluate Initial Population
+    best_val = float('inf')
+    best_vec = None
+    
+    for i in range(pop_size):
+        if datetime.now() >= end_time: return best_val
+        val = func(population[i])
+        fitness[i] = val
+        if val < best_val:
+            best_val = val
+            best_vec = population[i].copy()
+
+    # Max function evaluations budget estimation (dynamic based on speed)
+    # We use time ratio to drive LPSR
+    
+    # --- Main Loop ---
+    while True:
+        # Check Time
+        now = datetime.now()
+        if now >= end_time:
+            return best_val
+            
+        # --- 1. Linear Population Size Reduction (LPSR) ---
+        # Calculate progress ratio (0.0 to 1.0)
+        elapsed = (now - start_time).total_seconds()
+        ratio = elapsed / max_time
+        if ratio > 1.0: ratio = 1.0
+        
+        # Calculate new target population size
+        new_pop_size = int(round((N_min - N_init) * ratio + N_init))
+        
+        # If we need to reduce population
+        if new_pop_size < pop_size:
+            # Sort by fitness (worst at the end)
+            sort_idx = np.argsort(fitness)
+            population = population[sort_idx]
+            fitness = fitness[sort_idx]
+            
+            # Truncate
+            remove_count = pop_size - new_pop_size
+            # Simply drop the worst (last indices)
+            population = population[:-remove_count]
+            fitness = fitness[:-remove_count]
+            
+            # Resize Archive if it exceeds new population size
+            if len(archive) > new_pop_size:
+                # Randomly remove elements to fit size
+                del archive[new_pop_size:]
+                
+            pop_size = new_pop_size
+            
+            # Resync best vector just in case
+            best_idx = np.argmin(fitness)
+            if fitness[best_idx] < best_val:
+                best_val = fitness[best_idx]
+                best_vec = population[best_idx].copy()
+                
+        # --- 2. Parameter Generation ---
+        # Pick random memory indices
+        r_idx = np.random.randint(0, H, pop_size)
+        m_cr_selected = mem_cr[r_idx]
+        m_f_selected = mem_f[r_idx]
+        
+        # Generate CR ~ Normal(M_CR, 0.1)
+        cr_vals = np.random.normal(m_cr_selected, 0.1)
+        cr_vals = np.clip(cr_vals, 0, 1)
+        # Ensure CR is not negative (though clip handles it, logic dictates 0-1)
+        
+        # Generate F ~ Cauchy(M_F, 0.1)
+        # Cauchy: loc + scale * tan(pi * (rand - 0.5)) or standard_cauchy
+        f_vals = m_f_selected + 0.1 * np.random.standard_cauchy(pop_size)
+        
+        # Handle F constraints
+        # If F > 1, clamp to 1
+        f_vals[f_vals > 1] = 1.0
+        # If F <= 0, regenerate until > 0 (or simple clamp)
+        # Standard SHADE regenerates, but for speed we clamp to small epsilon
+        f_vals[f_vals <= 0] = 0.1
+        
+        # --- 3. Mutation: current-to-pbest/1 with Archive ---
+        # Sort population to find p-best
+        sorted_indices = np.argsort(fitness)
+        sorted_pop = population[sorted_indices]
+        
+        # p is a random value between 2/pop_size and 0.2 (usually) 
+        # SHADE logic: p_best index chosen from top max(2, pop_size * p)
+        p_val = np.random.uniform(2.0/pop_size, 0.2)
+        top_cnt = int(max(2, pop_size * p_val))
+        pbest_idxs = np.random.randint(0, top_cnt, pop_size)
+        x_pbest = sorted_pop[pbest_idxs]
+        
+        # r1: Random from population (distinct from i)
+        r1_idxs = np.random.randint(0, pop_size, pop_size)
+        # We ignore self-collision check for vectorization speed benefit
+        x_r1 = population[r1_idxs]
+        
+        # r2: Random from Union(Population, Archive)
+        # Prepare union
+        if len(archive) > 0:
+            archive_np = np.array(archive)
+            union_pop = np.vstack((population, archive_np))
+        else:
+            union_pop = population
+            
+        r2_idxs = np.random.randint(0, len(union_pop), pop_size)
+        x_r2 = union_pop[r2_idxs]
+        
+        # Mutation Equation: V = X_current + F(X_pbest - X_current) + F(X_r1 - X_r2)
+        # Reshape F for broadcasting
+        F_col = f_vals[:, np.newaxis]
+        mutants = population + F_col * (x_pbest - population) + F_col * (x_r1 - x_r2)
+        
+        # --- 4. Crossover (Binomial) ---
+        rand_vals = np.random.rand(pop_size, dim)
+        cross_mask = rand_vals < cr_vals[:, np.newaxis]
+        
+        # Force at least one dimension
+        j_rand = np.random.randint(0, dim, pop_size)
+        cross_mask[np.arange(pop_size), j_rand] = True
+        
+        trial_pop = np.where(cross_mask, mutants, population)
+        
+        # Bound Constraints: Bounce back or Clip?
+        # Clipping is safer for general cases
+        trial_pop = np.clip(trial_pop, min_b, max_b)
+        
+        # --- 5. Selection ---
+        success_mask = np.zeros(pop_size, dtype=bool)
+        diff_fitness = np.zeros(pop_size)
+        
+        new_archive_candidates = []
+        
+        for i in range(pop_size):
+            # Check time periodically inside the loop if pop is huge
+            if i % 50 == 0 and datetime.now() >= end_time:
+                 return best_val
+                 
+            f_trial = func(trial_pop[i])
+            
+            # Greedy selection
+            if f_trial <= fitness[i]:
+                # Improvement
+                diff = fitness[i] - f_trial
+                
+                # Add parent to archive
+                new_archive_candidates.append(population[i].copy())
+                
+                # Update population
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                success_mask[i] = True
+                diff_fitness[i] = diff
+                
+                # Update global best
+                if f_trial < best_val:
+                    best_val = f_trial
+                    best_vec = trial_pop[i].copy()
+                    
+        # Update Archive
+        if len(new_archive_candidates) > 0:
+            archive.extend(new_archive_candidates)
+            # Maintain Archive Size <= pop_size
+            if len(archive) > pop_size:
+                # Randomly remove excess
+                num_excess = len(archive) - pop_size
+                # Fast removal: shuffle and slice
+                np.random.shuffle(archive)
+                archive = archive[:pop_size]
+
+        # --- 6. Update History Memory ---
+        if np.any(success_mask):
+            # Get successful F and CR
+            succ_f = f_vals[success_mask]
+            succ_cr = cr_vals[success_mask]
+            df = diff_fitness[success_mask]
+            
+            # Calculate weights based on fitness improvement
+            total_df = np.sum(df)
+            if total_df == 0:
+                weights = np.ones(len(df)) / len(df)
+            else:
+                weights = df / total_df
+                
+            # Weighted Lehmer Mean for F
+            # mean_L = sum(w * f^2) / sum(w * f)
+            num_f = np.sum(weights * (succ_f ** 2))
+            den_f = np.sum(weights * succ_f)
+            if den_f == 0: 
+                new_mu_f = 0.5
+            else:
+                new_mu_f = num_f / den_f
+            
+            # Weighted Mean for CR
+            new_mu_cr = np.sum(weights * succ_cr)
+            
+            # Clamping (optional but good for stability)
+            new_mu_f = np.clip(new_mu_f, 0, 1)
+            new_mu_cr = np.clip(new_mu_cr, 0, 1)
+            
+            # Update Memory at index k
+            mem_f[k_mem] = new_mu_f
+            mem_cr[k_mem] = new_mu_cr
+            
+            # Increment pointer
+            k_mem = (k_mem + 1) % H
+
+    return best_val
+```";;;1d49d541-94ba-47ae-9fd3-16dfb1d3494a;{}

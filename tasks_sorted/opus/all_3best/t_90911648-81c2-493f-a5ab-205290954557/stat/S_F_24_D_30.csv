@@ -1,0 +1,11 @@
+,pcontext_sol_0,pcontext_sol_1,pcontext_sol_2,pcontext_sol_3,pcontext_sol_4,pcontext_sol_5,pcontext_sol_6,pcontext_sol_7,pcontext_sol_8,pcontext_sol_9,score,ranking
+pcontext_sol_6,+,+,+,+,+,+,0,+,+,+,9,1.0
+pcontext_sol_5,+,+,+,+,+,0,-,+,+,+,7,2.0
+pcontext_sol_0,0,+,=,=,+,-,-,+,+,+,3,3.0
+pcontext_sol_2,=,=,0,=,+,-,-,+,+,+,2,4.5
+pcontext_sol_3,=,=,=,0,+,-,-,+,+,+,2,4.5
+pcontext_sol_1,-,0,=,=,+,-,-,+,+,+,1,6.0
+pcontext_sol_4,-,-,-,-,0,-,-,=,+,=,-5,7.0
+pcontext_sol_7,-,-,-,-,=,-,-,0,=,=,-6,8.5
+pcontext_sol_9,-,-,-,-,=,-,-,=,=,0,-6,8.5
+pcontext_sol_8,-,-,-,-,-,-,-,=,0,=,-7,10.0

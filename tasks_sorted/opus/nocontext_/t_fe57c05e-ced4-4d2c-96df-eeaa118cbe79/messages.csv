@@ -1,0 +1,2451 @@
+time;tokens;role;text;path_solution_file;path_solution_metadata;id;metadata
+2026-03-04 19:56:43.575650+00:00;0;system;"Your task is to propose an algorithm to find a set of input parameter values that lead to minimum output value in a limited time. The template for the algorithm is given below. Deliver Python code that is fully operational and self-contained, requiring no external libraries or modifications post-delivery
+
+Glossary:
+func - function that returns output value (float) for an array of input parameter values (np.array).
+dim - (int) dimension of the input vector.
+bounds - (list) specified lower and upper bounds for the input vector values. A pair for each dimension.
+max_time - (int) maximum acceptable time in seconds to return a result.
+
+Template:
+
+def run(func, dim, bounds, max_time):
+
+    [Algorithm body]
+
+    # return fitness of the best found solution
+    return best
+
+Example implementation of a random search algorithm in the given template:
+
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+
+    # Algorithm body
+    while True:
+        passed_time = (datetime.now() - start)
+        if passed_time >= timedelta(seconds=max_time):
+            return best
+
+        params = [np.random.uniform(low, high) for low, high in bounds]
+        fitness = func(params)
+        if best is None or fitness <= best:
+            best = fitness
+        ";;;42b2bd29-fef3-4ba6-9e9b-ba69d52f72e1;{}
+2026-03-04 19:56:43.577329+00:00;0;user;----;;;94c73b5b-ec61-44df-b243-87771b689178;{}
+2026-03-04 19:57:05.736312+00:00;1551;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: Latin Hypercube Sampling for initial population ---
+    pop_size = min(max(20, 10 * dim), 200)
+    
+    # Generate initial population using LHS-like sampling
+    population = np.random.uniform(0, 1, (pop_size, dim))
+    for i in range(dim):
+        perm = np.random.permutation(pop_size)
+        population[:, i] = (perm + population[:, i]) / pop_size
+    population = lower + population * (upper - lower)
+    
+    fitness_vals = np.full(pop_size, float('inf'))
+    
+    for i in range(pop_size):
+        if (datetime.now() - start) >= timedelta(seconds=max_time * 0.95):
+            return best
+        f = func(population[i])
+        fitness_vals[i] = f
+        if f < best:
+            best = f
+            best_params = population[i].copy()
+    
+    # --- Phase 2: Differential Evolution with restarts and local search ---
+    F = 0.8
+    CR = 0.9
+    
+    generation = 0
+    stagnation = 0
+    prev_best = best
+    
+    while True:
+        elapsed = (datetime.now() - start).total_seconds()
+        if elapsed >= max_time * 0.90:
+            break
+        
+        generation += 1
+        
+        # Adaptive parameters
+        F_base = 0.5 + 0.3 * np.random.random()
+        
+        new_population = population.copy()
+        new_fitness = fitness_vals.copy()
+        
+        for i in range(pop_size):
+            elapsed = (datetime.now() - start).total_seconds()
+            if elapsed >= max_time * 0.88:
+                break
+            
+            # DE/current-to-best/1 with jitter
+            idxs = list(range(pop_size))
+            idxs.remove(i)
+            a, b = np.random.choice(idxs, 2, replace=False)
+            
+            best_idx = np.argmin(fitness_vals)
+            
+            F_i = F_base + 0.1 * np.random.randn()
+            F_i = np.clip(F_i, 0.1, 1.5)
+            
+            mutant = population[i] + F_i * (population[best_idx] - population[i]) + F_i * (population[a] - population[b])
+            
+            # Binomial crossover
+            cross_points = np.random.random(dim) < CR
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, population[i])
+            
+            # Bounce back boundary handling
+            for d in range(dim):
+                if trial[d] < lower[d]:
+                    trial[d] = lower[d] + np.random.random() * (population[i][d] - lower[d])
+                if trial[d] > upper[d]:
+                    trial[d] = upper[d] - np.random.random() * (upper[d] - population[i][d])
+            trial = np.clip(trial, lower, upper)
+            
+            f_trial = func(trial)
+            
+            if f_trial <= fitness_vals[i]:
+                new_population[i] = trial
+                new_fitness[i] = f_trial
+                if f_trial < best:
+                    best = f_trial
+                    best_params = trial.copy()
+        
+        population = new_population
+        fitness_vals = new_fitness
+        
+        # Check stagnation
+        if abs(best - prev_best) < 1e-12:
+            stagnation += 1
+        else:
+            stagnation = 0
+        prev_best = best
+        
+        # Restart worst half if stagnating
+        if stagnation > 15:
+            stagnation = 0
+            sorted_idx = np.argsort(fitness_vals)
+            half = pop_size // 2
+            for j in sorted_idx[half:]:
+                population[j] = lower + np.random.random(dim) * (upper - lower)
+                # Don't evaluate yet, will be evaluated next generation
+                fitness_vals[j] = float('inf')
+    
+    # --- Phase 3: Nelder-Mead-like local search around best ---
+    if best_params is not None:
+        elapsed = (datetime.now() - start).total_seconds()
+        remaining = max_time * 0.98 - elapsed
+        
+        if remaining > 0.1:
+            # Simple coordinate-wise search
+            step = (upper - lower) * 0.01
+            x = best_params.copy()
+            f_x = best
+            
+            for _ in range(50):
+                improved = False
+                for d in range(dim):
+                    if (datetime.now() - start).total_seconds() >= max_time * 0.98:
+                        return best
+                    
+                    for direction in [1, -1]:
+                        x_new = x.copy()
+                        x_new[d] = np.clip(x[d] + direction * step[d], lower[d], upper[d])
+                        f_new = func(x_new)
+                        if f_new < f_x:
+                            x = x_new
+                            f_x = f_new
+                            improved = True
+                            if f_x < best:
+                                best = f_x
+                                best_params = x.copy()
+                
+                if not improved:
+                    step *= 0.5
+                    if np.max(step / (upper - lower + 1e-30)) < 1e-10:
+                        break
+    
+    return best
+```";;;c830e5c7-ecf5-4508-97b3-1baeab4dc896;{}
+2026-03-04 20:11:05.388407+00:00;0;user;"Generate algorithm.
+";;;d264540b-2084-46cb-940b-1075bfb7b9b4;{}
+2026-03-04 20:11:58.822591+00:00;4316;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: CMA-ES inspired search ---
+    # Initialize population
+    pop_size = min(4 + int(3 * np.log(dim)), 50)
+    if pop_size % 2 != 0:
+        pop_size += 1
+    
+    # Multiple restarts with different strategies
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def clip(x):
+        return np.clip(x, lower, upper)
+    
+    def eval_func(x):
+        nonlocal best, best_params
+        x = clip(x)
+        f = func(x)
+        if f < best:
+            best = f
+            best_params = x.copy()
+        return f
+    
+    # Latin Hypercube initial sampling
+    n_initial = min(pop_size * 3, max(20, dim * 2))
+    for i in range(n_initial):
+        if elapsed() >= max_time * 0.95:
+            return best
+        x = lower + np.random.rand(dim) * (upper - lower)
+        eval_func(x)
+    
+    # CMA-ES implementation
+    def run_cmaes(mean_init, sigma_init, budget_fraction):
+        nonlocal best, best_params
+        
+        target_end = elapsed() + (max_time - elapsed()) * budget_fraction
+        
+        mean = mean_init.copy()
+        sigma = sigma_init
+        
+        lam = pop_size
+        mu = lam // 2
+        
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mu_eff = 1.0 / np.sum(weights ** 2)
+        
+        # Adaptation parameters
+        cs = (mu_eff + 2) / (dim + mu_eff + 5)
+        ds = 1 + 2 * max(0, np.sqrt((mu_eff - 1) / (dim + 1)) - 1) + cs
+        cc = (4 + mu_eff / dim) / (dim + 4 + 2 * mu_eff / dim)
+        c1 = 2 / ((dim + 1.3) ** 2 + mu_eff)
+        cmu = min(1 - c1, 2 * (mu_eff - 2 + 1 / mu_eff) / ((dim + 2) ** 2 + mu_eff))
+        
+        chi_n = np.sqrt(dim) * (1 - 1 / (4 * dim) + 1 / (21 * dim ** 2))
+        
+        ps = np.zeros(dim)
+        pc = np.zeros(dim)
+        
+        # Use diagonal covariance for high dimensions
+        use_full_cov = dim <= 50
+        
+        if use_full_cov:
+            C = np.eye(dim)
+            invsqrtC = np.eye(dim)
+            eigeneval = 0
+        else:
+            diag_C = np.ones(dim)
+        
+        generation = 0
+        
+        while elapsed() < target_end and elapsed() < max_time * 0.95:
+            # Generate offspring
+            arx = np.zeros((lam, dim))
+            arz = np.zeros((lam, dim))
+            arf = np.zeros(lam)
+            
+            for k in range(lam):
+                if elapsed() >= max_time * 0.95:
+                    return
+                
+                arz[k] = np.random.randn(dim)
+                if use_full_cov:
+                    arx[k] = mean + sigma * (invsqrtC @ arz[k] if False else np.dot(C_sqrt, arz[k]) if False else arz[k])
+                    # Actually use eigendecomposition properly
+                    arx[k] = mean + sigma * np.dot(BD, arz[k]) if 'BD' in dir() else mean + sigma * arz[k]
+                else:
+                    arx[k] = mean + sigma * np.sqrt(diag_C) * arz[k]
+                
+                arx[k] = clip(arx[k])
+                arf[k] = eval_func(arx[k])
+            
+            # Sort by fitness
+            idx = np.argsort(arf)
+            
+            # Update mean
+            old_mean = mean.copy()
+            mean = np.zeros(dim)
+            for i in range(mu):
+                mean += weights[i] * arx[idx[i]]
+            
+            # Update evolution paths
+            mean_diff = mean - old_mean
+            
+            if use_full_cov:
+                # Simplified: skip full covariance, use sep-CMA
+                pass
+            
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mu_eff) * mean_diff / sigma
+            
+            hsig = (np.linalg.norm(ps) / np.sqrt(1 - (1 - cs) ** (2 * (generation + 1))) / chi_n < 1.4 + 2 / (dim + 1))
+            
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mu_eff) * mean_diff / sigma
+            
+            if not use_full_cov:
+                # Sep-CMA-ES update
+                diag_C = (1 - c1 - cmu) * diag_C + \
+                         c1 * (pc ** 2 + (1 - hsig) * cc * (2 - cc) * diag_C)
+                for i in range(mu):
+                    diff = (arx[idx[i]] - old_mean) / sigma
+                    diag_C += cmu * weights[i] * diff ** 2
+                diag_C = np.maximum(diag_C, 1e-20)
+            
+            # Update sigma
+            sigma = sigma * np.exp((cs / ds) * (np.linalg.norm(ps) / chi_n - 1))
+            sigma = min(sigma, np.max(upper - lower))
+            sigma = max(sigma, 1e-20)
+            
+            generation += 1
+            
+            # Check for convergence
+            if sigma < 1e-12:
+                return
+    
+    # Run CMA-ES with restarts
+    restart = 0
+    while elapsed() < max_time * 0.90:
+        remaining = max_time - elapsed()
+        if remaining < 0.1:
+            break
+        
+        if restart == 0 and best_params is not None:
+            mean_init = best_params.copy()
+            sigma_init = 0.3 * np.mean(upper - lower)
+        else:
+            mean_init = lower + np.random.rand(dim) * (upper - lower)
+            sigma_init = 0.3 * np.mean(upper - lower)
+        
+        budget_frac = min(0.5, max(0.15, 1.0 / (restart + 2)))
+        run_cmaes(mean_init, sigma_init, budget_frac)
+        restart += 1
+    
+    # --- Phase 2: Differential Evolution style refinement ---
+    # Use Nelder-Mead simplex for final refinement if time permits
+    if best_params is not None and elapsed() < max_time * 0.95:
+        # Local search around best
+        step = 0.01 * (upper - lower)
+        current = best_params.copy()
+        current_f = best
+        
+        while elapsed() < max_time * 0.95:
+            improved = False
+            for i in range(dim):
+                if elapsed() >= max_time * 0.95:
+                    break
+                
+                # Try positive step
+                trial = current.copy()
+                trial[i] = min(current[i] + step[i], upper[i])
+                f = eval_func(trial)
+                if f < current_f:
+                    current = trial
+                    current_f = f
+                    improved = True
+                    continue
+                
+                # Try negative step
+                trial = current.copy()
+                trial[i] = max(current[i] - step[i], lower[i])
+                f = eval_func(trial)
+                if f < current_f:
+                    current = trial
+                    current_f = f
+                    improved = True
+            
+            if not improved:
+                step *= 0.5
+                if np.max(step) < 1e-15:
+                    break
+    
+    return best
+```
+
+Wait, let me reconsider. The CMA-ES implementation above has some issues (referencing undefined variables like `BD`, `C_sqrt`). Let me provide a clean, working implementation.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    ranges = upper - lower
+    
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def clip(x):
+        return np.clip(x, lower, upper)
+    
+    def eval_func(x):
+        nonlocal best, best_params
+        x = clip(x)
+        f = func(x)
+        if f < best:
+            best = f
+            best_params = x.copy()
+        return f
+    
+    # --- Separable CMA-ES with restarts ---
+    def run_sep_cmaes(mean_init, sigma_init, time_limit):
+        nonlocal best, best_params
+        
+        lam = 4 + int(3 * np.log(dim))
+        mu = lam // 2
+        
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mu_eff = 1.0 / np.sum(weights ** 2)
+        
+        cs = (mu_eff + 2) / (dim + mu_eff + 5)
+        ds = 1 + 2 * max(0, np.sqrt((mu_eff - 1) / (dim + 1)) - 1) + cs
+        cc = (4 + mu_eff / dim) / (dim + 4 + 2 * mu_eff / dim)
+        c1 = 2 / ((dim + 1.3) ** 2 + mu_eff)
+        cmu_val = min(1 - c1, 2 * (mu_eff - 2 + 1 / mu_eff) / ((dim + 2) ** 2 + mu_eff))
+        chi_n = np.sqrt(dim) * (1 - 1 / (4 * dim) + 1 / (21 * dim ** 2))
+        
+        mean = mean_init.copy()
+        sigma = sigma_init
+        diag_C = np.ones(dim)
+        ps = np.zeros(dim)
+        pc = np.zeros(dim)
+        gen = 0
+        
+        end_time = elapsed() + time_limit
+        
+        while elapsed() < end_time and elapsed() < max_time * 0.92:
+            arx = np.zeros((lam, dim))
+            arf = np.zeros(lam)
+            
+            sqrt_diag = np.sqrt(diag_C)
+            
+            for k in range(lam):
+                if elapsed() >= max_time * 0.95:
+                    return
+                z = np.random.randn(dim)
+                arx[k] = mean + sigma * sqrt_diag * z
+                arx[k] = clip(arx[k])
+                arf[k] = eval_func(arx[k])
+            
+            idx = np.argsort(arf)
+            old_mean = mean.copy()
+            
+            mean = np.zeros(dim)
+            for i in range(mu):
+                mean += weights[i] * arx[idx[i]]
+            
+            diff = (mean - old_mean) / sigma
+            invsqrt_diag = 1.0 / np.maximum(sqrt_diag, 1e-30)
+            
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mu_eff) * invsqrt_diag * diff
+            
+            norm_ps = np.linalg.norm(ps)
+            hsig = float(norm_ps / np.sqrt(1 - (1 - cs) ** (2 * (gen + 1))) / chi_n < 1.4 + 2 / (dim + 1))
+            
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mu_eff) * diff
+            
+            new_diag = (1 - c1 - cmu_val) * diag_C
+            new_diag += c1 * (pc ** 2 + (1 - hsig) * cc * (2 - cc) * diag_C)
+            for i in range(mu):
+                d = (arx[idx[i]] - old_mean) / sigma
+                new_diag += cmu_val * weights[i] * d ** 2
+            diag_C = np.maximum(new_diag, 1e-20)
+            
+            sigma *= np.exp((cs / ds) * (norm_ps / chi_n - 1))
+            sigma = max(sigma, 1e-20)
+            sigma = min(sigma, np.max(ranges) * 2)
+            
+            gen += 1
+            
+            if sigma * np.max(np.sqrt(diag_C)) < 1e-12:
+                return
+    
+    # Initial sampling
+    n_init = min(max(2 * dim, 20), 200)
+    for _ in range(n_init):
+        if elapsed() >= max_time * 0.1:
+            break
+        x = lower + np.random.rand(dim) * ranges
+        eval_func(x)
+    
+    # CMA-ES restarts
+    restart = 0
+    while elapsed() < max_time * 0.85:
+        remaining = max_time - elapsed()
+        if remaining < 0.2:
+            break
+        
+        if restart == 0 and best_params is not None:
+            mean_init = best_params.copy()
+            sigma_init = 0.2 * np.mean(ranges)
+        elif restart % 3 == 0 and best_params is not None:
+            # Restart near best with small sigma
+            mean_init = best_params + 0.1 * ranges * np.random.randn(dim)
+            mean_init = clip(mean_init)
+            sigma_init = 0.1 * np.mean(ranges)
+        else:
+            mean_init = lower + np.random.rand(dim) * ranges
+            sigma_init = 0.3 * np.mean(ranges)
+        
+        time_budget = max(0.5, (max_time - elapsed()) * 0.3)
+        run_sep_cmaes(mean_init, sigma_init, time_budget)
+        restart += 1
+    
+    # Local coordinate descent refinement
+    if best_params is not None:
+        current = best_params.copy()
+        current_f = best
+        step = 0.001 * ranges
+        
+        while elapsed() < max_time * 0.98:
+            improved = False
+            for i in range(dim):
+                if elapsed() >= max_time * 0.98:
+                    break
+                
+                trial = current.copy()
+                trial[i] = min(current[i] + step[i], upper[i])
+                f = eval_func(trial)
+                if f < current_f:
+                    current = trial
+                    current_f = f
+                    step[i] *= 1.5
+                    improved = True
+                    continue
+                
+                trial = current.copy()
+                trial[i] = max(current[i] - step[i], lower[i])
+                f = eval_func(trial)
+                if f < current_f:
+                    current = trial
+                    current_f = f
+                    step[i] *= 1.5
+                    improved = True
+                    continue
+                
+                step[i] *= 0.5
+            
+            if not improved:
+                if np.max(step / ranges) < 1e-14:
+                    break
+    
+    return best
+```";;;cfcadc50-59c9-4a57-84e1-61c3698b4b82;{}
+2026-03-04 20:26:39.789489+00:00;0;user;"Generate algorithm.
+";;;7027e02b-6099-4b70-8ef2-8622e0b2bc5c;{}
+2026-03-04 20:27:20.435251+00:00;2737;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: CMA-ES inspired search ---
+    # Initialize population
+    pop_size = min(4 + int(3 * np.log(dim)), 50)
+    if pop_size % 2 != 0:
+        pop_size += 1
+    
+    # Start with multiple restarts of a simple CMA-ES
+    sigma0 = 0.3  # initial step size relative to bounds range
+    
+    def clip_to_bounds(x):
+        return np.clip(x, lower, upper)
+    
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def remaining():
+        return max_time - elapsed()
+    
+    # Latin hypercube sampling for initial points
+    def latin_hypercube(n):
+        points = np.zeros((n, dim))
+        for d in range(dim):
+            perm = np.random.permutation(n)
+            for i in range(n):
+                points[i, d] = lower[d] + (upper[d] - lower[d]) * (perm[i] + np.random.random()) / n
+        return points
+    
+    # Evaluate initial samples
+    n_init = min(max(10 * dim, 50), 200)
+    init_points = latin_hypercube(n_init)
+    
+    for i in range(n_init):
+        if elapsed() >= max_time * 0.95:
+            return best
+        fitness = func(init_points[i])
+        if fitness < best:
+            best = fitness
+            best_params = init_points[i].copy()
+    
+    if best_params is None:
+        best_params = (lower + upper) / 2.0
+    
+    # CMA-ES implementation
+    def cma_es(x0, sigma, budget_fraction=0.9):
+        nonlocal best, best_params
+        
+        target_time = elapsed() + remaining() * budget_fraction
+        
+        n = len(x0)
+        lam = pop_size
+        mu = lam // 2
+        
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mueff = 1.0 / np.sum(weights ** 2)
+        
+        cc = (4 + mueff / n) / (n + 4 + 2 * mueff / n)
+        cs = (mueff + 2) / (n + mueff + 5)
+        c1 = 2 / ((n + 1.3) ** 2 + mueff)
+        cmu_val = min(1 - c1, 2 * (mueff - 2 + 1 / mueff) / ((n + 2) ** 2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1) / (n + 1)) - 1) + cs
+        
+        pc = np.zeros(n)
+        ps = np.zeros(n)
+        
+        # Use diagonal approximation for high dimensions
+        use_diag = n > 50
+        
+        if use_diag:
+            C_diag = np.ones(n)
+        else:
+            C = np.eye(n)
+            eigeneval = 0
+            B = np.eye(n)
+            D = np.ones(n)
+        
+        mean = x0.copy()
+        sig = sigma
+        chiN = n ** 0.5 * (1 - 1 / (4 * n) + 1 / (21 * n ** 2))
+        
+        gen = 0
+        stagnation = 0
+        prev_best = best
+        
+        while elapsed() < target_time:
+            # Generate offspring
+            arz = np.random.randn(lam, n)
+            arx = np.zeros((lam, n))
+            
+            if use_diag:
+                sqrt_C = np.sqrt(C_diag)
+                for k in range(lam):
+                    arx[k] = clip_to_bounds(mean + sig * sqrt_C * arz[k])
+            else:
+                for k in range(lam):
+                    arx[k] = clip_to_bounds(mean + sig * (B @ (D * arz[k])))
+            
+            # Evaluate
+            fitvals = np.zeros(lam)
+            for k in range(lam):
+                if elapsed() >= target_time:
+                    return
+                fitvals[k] = func(arx[k])
+                if fitvals[k] < best:
+                    best = fitvals[k]
+                    best_params = arx[k].copy()
+            
+            # Sort by fitness
+            idx = np.argsort(fitvals)
+            
+            # Update mean
+            old_mean = mean.copy()
+            mean = np.sum(weights[:, None] * arx[idx[:mu]], axis=0)
+            
+            # Update evolution paths
+            if use_diag:
+                inv_sqrt_C = 1.0 / np.sqrt(C_diag)
+                ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * inv_sqrt_C * (mean - old_mean) / sig
+            else:
+                invsqrtC = B @ np.diag(1.0 / D) @ B.T
+                ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * (invsqrtC @ (mean - old_mean)) / sig
+            
+            hsig = int(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs) ** (2 * (gen + 1))) / chiN < 1.4 + 2 / (n + 1))
+            
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (mean - old_mean) / sig
+            
+            if use_diag:
+                # Diagonal CMA update
+                artmp = (arx[idx[:mu]] - old_mean) / sig
+                C_diag = (1 - c1 - cmu_val) * C_diag + \
+                         c1 * (pc ** 2 + (1 - hsig) * cc * (2 - cc) * C_diag) + \
+                         cmu_val * np.sum(weights[:, None] * artmp ** 2, axis=0)
+                C_diag = np.maximum(C_diag, 1e-20)
+            else:
+                artmp = (arx[idx[:mu]] - old_mean) / sig
+                C = (1 - c1 - cmu_val) * C + \
+                    c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C) + \
+                    cmu_val * (weights[:, None] * artmp).T @ artmp
+                
+                eigeneval += lam
+                if eigeneval >= lam / (c1 + cmu_val) / n / 10:
+                    eigeneval = 0
+                    C = np.triu(C) + np.triu(C, 1).T
+                    try:
+                        D_sq, B = np.linalg.eigh(C)
+                        D_sq = np.maximum(D_sq, 1e-20)
+                        D = np.sqrt(D_sq)
+                    except np.linalg.LinAlgError:
+                        # Reset
+                        C = np.eye(n)
+                        B = np.eye(n)
+                        D = np.ones(n)
+            
+            # Update sigma
+            sig = sig * np.exp((cs / damps) * (np.linalg.norm(ps) / chiN - 1))
+            sig = min(sig, np.max(upper - lower))  # cap sigma
+            
+            gen += 1
+            
+            # Check stagnation
+            if best >= prev_best:
+                stagnation += 1
+            else:
+                stagnation = 0
+                prev_best = best
+            
+            if stagnation > 10 + int(30 * n / lam):
+                return  # restart
+            
+            if sig < 1e-12:
+                return  # converged
+    
+    # Run CMA-ES with restarts
+    restart_count = 0
+    while elapsed() < max_time * 0.95:
+        # Choose starting point
+        if restart_count == 0:
+            x0 = best_params.copy()
+            sig = sigma0 * np.mean(upper - lower)
+        else:
+            # Restart: mix of best known and random
+            if np.random.random() < 0.3:
+                x0 = best_params.copy() + 0.1 * (upper - lower) * np.random.randn(dim)
+                x0 = clip_to_bounds(x0)
+                sig = 0.1 * np.mean(upper - lower)
+            else:
+                x0 = np.array([np.random.uniform(l, h) for l, h in bounds])
+                sig = 0.3 * np.mean(upper - lower)
+        
+        # Allocate time: diminishing fractions
+        r = remaining()
+        if r < 0.5:
+            break
+        fraction = min(0.5, max(0.1, 1.0 / (restart_count + 2)))
+        
+        cma_es(x0, sig, budget_fraction=fraction)
+        restart_count += 1
+    
+    # Final local search (Nelder-Mead style)
+    if best_params is not None and remaining() > 0.5:
+        # Quick coordinate descent refinement
+        step = 0.001 * (upper - lower)
+        improved = True
+        while improved and elapsed() < max_time * 0.98:
+            improved = False
+            for d in range(dim):
+                if elapsed() >= max_time * 0.98:
+                    break
+                for direction in [1, -1]:
+                    trial = best_params.copy()
+                    trial[d] = np.clip(trial[d] + direction * step[d], lower[d], upper[d])
+                    f = func(trial)
+                    if f < best:
+                        best = f
+                        best_params = trial.copy()
+                        improved = True
+    
+    return best
+```";;;f0c44338-d282-4c99-941d-3990b959d4c3;{}
+2026-03-04 20:41:38.913155+00:00;0;user;"Generate algorithm.
+";;;688970e9-673c-4245-9ed6-45742682056c;{}
+2026-03-04 20:41:57.997568+00:00;1364;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_x = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Parameters ---
+    pop_size = max(20, min(100, 10 * dim))
+    F = 0.8       # differential weight
+    CR = 0.9      # crossover probability
+    
+    # Initialize population
+    population = np.random.uniform(lower, upper, (pop_size, dim))
+    fitness = np.array([func(ind) for ind in population])
+    
+    best_idx = np.argmin(fitness)
+    if fitness[best_idx] < best:
+        best = fitness[best_idx]
+        best_x = population[best_idx].copy()
+    
+    def time_remaining():
+        return timedelta(seconds=max_time) - (datetime.now() - start)
+    
+    generation = 0
+    
+    # --- Main loop: Differential Evolution with restarts and local search ---
+    while True:
+        if time_remaining().total_seconds() < 0.1:
+            return best
+        
+        generation += 1
+        
+        # DE/rand/1/bin with optional current-to-best
+        indices = np.arange(pop_size)
+        
+        for i in range(pop_size):
+            if time_remaining().total_seconds() < 0.05:
+                return best
+            
+            # Adaptive F and CR
+            Fi = F + 0.1 * np.random.randn()
+            Fi = np.clip(Fi, 0.1, 1.5)
+            CRi = CR + 0.1 * np.random.randn()
+            CRi = np.clip(CRi, 0.0, 1.0)
+            
+            # Select 3 distinct individuals different from i
+            candidates = [c for c in range(pop_size) if c != i]
+            r1, r2, r3 = np.random.choice(candidates, 3, replace=False)
+            
+            # Mutation: DE/current-to-best/1
+            mutant = population[i] + Fi * (best_x - population[i]) + Fi * (population[r1] - population[r2])
+            
+            # Crossover
+            trial = population[i].copy()
+            j_rand = np.random.randint(dim)
+            for j in range(dim):
+                if np.random.rand() < CRi or j == j_rand:
+                    trial[j] = mutant[j]
+            
+            # Clip to bounds
+            trial = np.clip(trial, lower, upper)
+            
+            # Selection
+            trial_fitness = func(trial)
+            if trial_fitness <= fitness[i]:
+                population[i] = trial
+                fitness[i] = trial_fitness
+                if trial_fitness < best:
+                    best = trial_fitness
+                    best_x = trial.copy()
+        
+        # Periodically do local search (Nelder-Mead style simplex) around best
+        if generation % 5 == 0 and time_remaining().total_seconds() > 1.0:
+            # Simple coordinate-wise local search
+            step = (upper - lower) * 0.01
+            current = best_x.copy()
+            current_fit = best
+            
+            improved = True
+            while improved and time_remaining().total_seconds() > 0.5:
+                improved = False
+                for j in range(dim):
+                    if time_remaining().total_seconds() < 0.2:
+                        break
+                    
+                    # Try positive step
+                    trial = current.copy()
+                    trial[j] = min(current[j] + step[j], upper[j])
+                    tf = func(trial)
+                    if tf < current_fit:
+                        current = trial
+                        current_fit = tf
+                        improved = True
+                        continue
+                    
+                    # Try negative step
+                    trial = current.copy()
+                    trial[j] = max(current[j] - step[j], lower[j])
+                    tf = func(trial)
+                    if tf < current_fit:
+                        current = trial
+                        current_fit = tf
+                        improved = True
+                        continue
+                
+                step *= 0.5  # Reduce step size
+                if np.max(step) < 1e-12:
+                    break
+            
+            if current_fit < best:
+                best = current_fit
+                best_x = current.copy()
+                # Inject back into population
+                worst_idx = np.argmax(fitness)
+                population[worst_idx] = best_x.copy()
+                fitness[worst_idx] = best
+        
+        # Restart worst half occasionally to maintain diversity
+        if generation % 50 == 0:
+            sorted_idx = np.argsort(fitness)
+            half = pop_size // 2
+            for idx in sorted_idx[half:]:
+                population[idx] = np.random.uniform(lower, upper)
+                if time_remaining().total_seconds() < 0.2:
+                    return best
+                fitness[idx] = func(population[idx])
+                if fitness[idx] < best:
+                    best = fitness[idx]
+                    best_x = population[idx].copy()
+    
+    return best
+```";;;98c16487-79c4-4c4f-a7c2-03d6e6676740;{}
+2026-03-04 20:56:55.187281+00:00;0;user;"Generate algorithm.
+";;;bd5a77e8-8f65-4603-8d7b-c3dca8f1b4d5;{}
+2026-03-04 20:57:24.139186+00:00;2269;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_x = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Parameters ---
+    pop_size = min(max(20, 10 * dim), 200)
+    F = 0.8   # differential weight
+    CR = 0.9  # crossover probability
+    
+    # --- Initialize population ---
+    population = np.random.uniform(lower, upper, (pop_size, dim))
+    fitness = np.array([func(ind) for ind in population])
+    
+    best_idx = np.argmin(fitness)
+    if fitness[best_idx] < best:
+        best = fitness[best_idx]
+        best_x = population[best_idx].copy()
+    
+    def time_remaining():
+        return max_time - (datetime.now() - start).total_seconds()
+    
+    # --- CMA-ES-like local search around best ---
+    def local_search_nelder_mead(x0, budget_seconds):
+        """"""Simple Nelder-Mead simplex search.""""""
+        n = len(x0)
+        alpha, gamma, rho, sigma = 1.0, 2.0, 0.5, 0.5
+        
+        # Initialize simplex
+        simplex = np.zeros((n + 1, n))
+        simplex[0] = x0.copy()
+        f_simplex = np.zeros(n + 1)
+        f_simplex[0] = func(x0)
+        
+        nonlocal best, best_x
+        if f_simplex[0] < best:
+            best = f_simplex[0]
+            best_x = x0.copy()
+        
+        for i in range(n):
+            point = x0.copy()
+            step = max(abs(x0[i]) * 0.05, (upper[i] - lower[i]) * 0.01)
+            point[i] += step
+            point = np.clip(point, lower, upper)
+            simplex[i + 1] = point
+            f_simplex[i + 1] = func(point)
+            if f_simplex[i + 1] < best:
+                best = f_simplex[i + 1]
+                best_x = point.copy()
+        
+        start_local = datetime.now()
+        max_iter = 5000
+        
+        for iteration in range(max_iter):
+            if (datetime.now() - start_local).total_seconds() > budget_seconds:
+                break
+            if time_remaining() < 0.1:
+                break
+            
+            order = np.argsort(f_simplex)
+            simplex = simplex[order]
+            f_simplex = f_simplex[order]
+            
+            # Centroid (exclude worst)
+            centroid = np.mean(simplex[:-1], axis=0)
+            
+            # Reflection
+            xr = np.clip(centroid + alpha * (centroid - simplex[-1]), lower, upper)
+            fr = func(xr)
+            if fr < best:
+                best = fr
+                best_x = xr.copy()
+            
+            if f_simplex[0] <= fr < f_simplex[-2]:
+                simplex[-1] = xr
+                f_simplex[-1] = fr
+            elif fr < f_simplex[0]:
+                # Expansion
+                xe = np.clip(centroid + gamma * (xr - centroid), lower, upper)
+                fe = func(xe)
+                if fe < best:
+                    best = fe
+                    best_x = xe.copy()
+                if fe < fr:
+                    simplex[-1] = xe
+                    f_simplex[-1] = fe
+                else:
+                    simplex[-1] = xr
+                    f_simplex[-1] = fr
+            else:
+                # Contraction
+                xc = np.clip(centroid + rho * (simplex[-1] - centroid), lower, upper)
+                fc = func(xc)
+                if fc < best:
+                    best = fc
+                    best_x = xc.copy()
+                if fc < f_simplex[-1]:
+                    simplex[-1] = xc
+                    f_simplex[-1] = fc
+                else:
+                    # Shrink
+                    for i in range(1, n + 1):
+                        simplex[i] = np.clip(simplex[0] + sigma * (simplex[i] - simplex[0]), lower, upper)
+                        f_simplex[i] = func(simplex[i])
+                        if f_simplex[i] < best:
+                            best = f_simplex[i]
+                            best_x = simplex[i].copy()
+        
+        best_local_idx = np.argmin(f_simplex)
+        return simplex[best_local_idx], f_simplex[best_local_idx]
+    
+    # --- Main DE loop ---
+    generation = 0
+    stagnation = 0
+    prev_best = best
+    
+    while True:
+        if time_remaining() < 0.5:
+            break
+        
+        generation += 1
+        
+        # Adaptive parameters
+        if stagnation > 20:
+            F_cur = np.random.uniform(0.4, 1.0)
+            CR_cur = np.random.uniform(0.1, 1.0)
+        else:
+            F_cur = F
+            CR_cur = CR
+        
+        new_population = population.copy()
+        new_fitness = fitness.copy()
+        
+        for i in range(pop_size):
+            if time_remaining() < 0.3:
+                break
+            
+            # DE/current-to-best/1
+            idxs = list(range(pop_size))
+            idxs.remove(i)
+            a, b = np.random.choice(idxs, 2, replace=False)
+            
+            F_i = F_cur + 0.1 * np.random.randn()
+            F_i = np.clip(F_i, 0.1, 1.5)
+            
+            mutant = population[i] + F_i * (best_x - population[i]) + F_i * (population[a] - population[b])
+            mutant = np.clip(mutant, lower, upper)
+            
+            # Binomial crossover
+            cross_points = np.random.rand(dim) < CR_cur
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, population[i])
+            trial = np.clip(trial, lower, upper)
+            
+            f_trial = func(trial)
+            
+            if f_trial <= fitness[i]:
+                new_population[i] = trial
+                new_fitness[i] = f_trial
+                
+                if f_trial < best:
+                    best = f_trial
+                    best_x = trial.copy()
+        
+        population = new_population
+        fitness = new_fitness
+        
+        # Check stagnation
+        if abs(best - prev_best) < 1e-12:
+            stagnation += 1
+        else:
+            stagnation = 0
+        prev_best = best
+        
+        # Restart worst individuals if stagnating
+        if stagnation > 50:
+            n_restart = pop_size // 2
+            worst_idxs = np.argsort(fitness)[-n_restart:]
+            for idx in worst_idxs:
+                population[idx] = np.random.uniform(lower, upper)
+                fitness[idx] = func(population[idx])
+                if fitness[idx] < best:
+                    best = fitness[idx]
+                    best_x = population[idx].copy()
+            stagnation = 0
+        
+        # Periodically run local search on best
+        if generation % 30 == 0 and time_remaining() > 2.0:
+            budget = min(time_remaining() * 0.3, 3.0)
+            lx, lf = local_search_nelder_mead(best_x.copy(), budget)
+            if lf < best:
+                best = lf
+                best_x = lx.copy()
+            # Insert into population
+            worst_idx = np.argmax(fitness)
+            population[worst_idx] = best_x.copy()
+            fitness[worst_idx] = best
+    
+    # Final local search with remaining time
+    remaining = time_remaining()
+    if remaining > 0.5 and best_x is not None:
+        lx, lf = local_search_nelder_mead(best_x.copy(), remaining - 0.2)
+        if lf < best:
+            best = lf
+            best_x = lx.copy()
+    
+    return best
+```";;;5f8cea5d-915d-44ad-8b9c-46f68d8b0908;{}
+2026-03-04 21:12:09.638142+00:00;0;user;"Generate algorithm.
+";;;fb9a3cfa-6c12-4cd7-af2f-0ffd12327c47;{}
+2026-03-04 21:13:01.721096+00:00;3851;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_x = None
+    
+    bounds_arr = np.array(bounds)
+    lower = bounds_arr[:, 0]
+    upper = bounds_arr[:, 1]
+    ranges = upper - lower
+    
+    # --- Phase 1: CMA-ES inspired search ---
+    # Initialize population
+    pop_size = min(4 + int(3 * np.log(dim)), 50)
+    if pop_size % 2 != 0:
+        pop_size += 1
+    
+    # Multiple restarts with different strategies
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def clip(x):
+        return np.clip(x, lower, upper)
+    
+    def eval_func(x):
+        nonlocal best, best_x
+        x_clipped = clip(x)
+        f = func(x_clipped)
+        if f < best:
+            best = f
+            best_x = x_clipped.copy()
+        return f
+    
+    # Latin Hypercube initial sampling
+    n_init = min(max(10 * dim, 50), 200)
+    for i in range(n_init):
+        if elapsed() >= max_time * 0.95:
+            return best
+        x = lower + np.random.rand(dim) * ranges
+        eval_func(x)
+    
+    # CMA-ES implementation
+    def run_cmaes(x0, sigma0, budget_fraction):
+        nonlocal best, best_x
+        
+        time_limit = start + timedelta(seconds=max_time * budget_fraction)
+        
+        n = dim
+        lam = pop_size
+        mu = lam // 2
+        
+        # Weights
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mueff = 1.0 / np.sum(weights ** 2)
+        
+        # Adaptation parameters
+        cc = (4 + mueff / n) / (n + 4 + 2 * mueff / n)
+        cs = (mueff + 2) / (n + mueff + 5)
+        c1 = 2 / ((n + 1.3) ** 2 + mueff)
+        cmu = min(1 - c1, 2 * (mueff - 2 + 1 / mueff) / ((n + 2) ** 2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1) / (n + 1)) - 1) + cs
+        
+        chiN = np.sqrt(n) * (1 - 1 / (4 * n) + 1 / (21 * n ** 2))
+        
+        # State variables
+        mean = x0.copy()
+        sigma = sigma0
+        pc = np.zeros(n)
+        ps = np.zeros(n)
+        
+        # Use diagonal covariance for high dimensions
+        use_diag = dim > 50
+        
+        if use_diag:
+            C_diag = np.ones(n)
+        else:
+            C = np.eye(n)
+            eigeneval = 0
+            B = np.eye(n)
+            D = np.ones(n)
+        
+        gen = 0
+        stagnation = 0
+        prev_best = float('inf')
+        
+        while datetime.now() < time_limit:
+            gen += 1
+            
+            # Generate offspring
+            arx = np.zeros((lam, n))
+            arz = np.zeros((lam, n))
+            
+            for k in range(lam):
+                if use_diag:
+                    arz[k] = np.random.randn(n)
+                    arx[k] = mean + sigma * np.sqrt(C_diag) * arz[k]
+                else:
+                    arz[k] = np.random.randn(n)
+                    arx[k] = mean + sigma * (B @ (D * arz[k]))
+            
+            # Evaluate
+            arfitness = np.zeros(lam)
+            for k in range(lam):
+                if elapsed() >= max_time * 0.95:
+                    return
+                arfitness[k] = eval_func(arx[k])
+            
+            # Sort
+            arindex = np.argsort(arfitness)
+            
+            # Check stagnation
+            if arfitness[arindex[0]] < prev_best - 1e-12:
+                stagnation = 0
+                prev_best = arfitness[arindex[0]]
+            else:
+                stagnation += 1
+            
+            if stagnation > 10 + 30 * n / lam:
+                return  # restart
+            
+            # Recombination
+            xold = mean.copy()
+            mean = np.sum(weights[:, None] * arx[arindex[:mu]], axis=0)
+            
+            # Update evolution paths
+            if use_diag:
+                invsqrtC = 1.0 / np.sqrt(C_diag)
+                ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * invsqrtC * (mean - xold) / sigma
+            else:
+                invsqrtC = B @ np.diag(1.0 / D) @ B.T
+                ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * (invsqrtC @ (mean - xold)) / sigma
+            
+            hsig = int(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs) ** (2 * gen)) / chiN < 1.4 + 2 / (n + 1))
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (mean - xold) / sigma
+            
+            # Update covariance
+            artmp = (arx[arindex[:mu]] - xold) / sigma
+            
+            if use_diag:
+                C_diag = ((1 - c1 - cmu) * C_diag 
+                         + c1 * (pc ** 2 + (1 - hsig) * cc * (2 - cc) * C_diag)
+                         + cmu * np.sum(weights[:, None] * artmp ** 2, axis=0))
+                C_diag = np.maximum(C_diag, 1e-20)
+            else:
+                C = ((1 - c1 - cmu) * C
+                     + c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C)
+                     + cmu * (artmp.T @ np.diag(weights) @ artmp))
+                
+                # Eigen decomposition
+                eigeneval += 1
+                if eigeneval >= lam / (c1 + cmu) / n / 10 or gen == 1:
+                    eigeneval = 0
+                    C = np.triu(C) + np.triu(C, 1).T
+                    try:
+                        D_sq, B = np.linalg.eigh(C)
+                        D_sq = np.maximum(D_sq, 1e-20)
+                        D = np.sqrt(D_sq)
+                    except:
+                        return  # restart on numerical error
+            
+            # Update sigma
+            sigma *= np.exp((cs / damps) * (np.linalg.norm(ps) / chiN - 1))
+            sigma = min(sigma, np.max(ranges))
+            
+            if sigma < 1e-16:
+                return  # converged
+    
+    # Differential Evolution phase
+    def run_de(budget_time_end):
+        nonlocal best, best_x
+        
+        de_pop_size = min(max(10 * dim, 30), 100)
+        
+        # Initialize population
+        pop = np.zeros((de_pop_size, dim))
+        fit = np.zeros(de_pop_size)
+        
+        for i in range(de_pop_size):
+            if elapsed() >= max_time * 0.95:
+                return
+            pop[i] = lower + np.random.rand(dim) * ranges
+            if best_x is not None and i == 0:
+                pop[i] = best_x.copy()
+            fit[i] = eval_func(pop[i])
+        
+        F = 0.8
+        CR = 0.9
+        
+        while elapsed() < budget_time_end:
+            for i in range(de_pop_size):
+                if elapsed() >= max_time * 0.95:
+                    return
+                
+                # Mutation: DE/best/1 with some DE/rand/1
+                idxs = list(range(de_pop_size))
+                idxs.remove(i)
+                
+                if np.random.rand() < 0.5 and best_x is not None:
+                    # DE/best/1
+                    a, b = np.random.choice(idxs, 2, replace=False)
+                    Fi = F + 0.1 * np.random.randn()
+                    mutant = best_x + Fi * (pop[a] - pop[b])
+                else:
+                    # DE/rand/1
+                    a, b, c = np.random.choice(idxs, 3, replace=False)
+                    Fi = F + 0.1 * np.random.randn()
+                    mutant = pop[a] + Fi * (pop[b] - pop[c])
+                
+                # Crossover
+                trial = pop[i].copy()
+                jrand = np.random.randint(dim)
+                for j in range(dim):
+                    if np.random.rand() < CR or j == jrand:
+                        trial[j] = mutant[j]
+                
+                trial = clip(trial)
+                f_trial = eval_func(trial)
+                
+                if f_trial <= fit[i]:
+                    pop[i] = trial
+                    fit[i] = f_trial
+    
+    # Nelder-Mead local search
+    def run_nelder_mead(x0, budget_time_end):
+        nonlocal best, best_x
+        
+        n = dim
+        alpha = 1.0
+        gamma = 2.0
+        rho = 0.5
+        sigma_nm = 0.5
+        
+        # Initialize simplex
+        simplex = np.zeros((n + 1, n))
+        simplex[0] = x0.copy()
+        
+        step = ranges * 0.05
+        for i in range(n):
+            simplex[i + 1] = x0.copy()
+            simplex[i + 1][i] += step[i] if step[i] > 1e-10 else 0.01
+        
+        simplex = clip(simplex)
+        f_simplex = np.zeros(n + 1)
+        for i in range(n + 1):
+            if elapsed() >= max_time * 0.95:
+                return
+            f_simplex[i] = eval_func(simplex[i])
+        
+        while elapsed() < budget_time_end:
+            # Sort
+            order = np.argsort(f_simplex)
+            simplex = simplex[order]
+            f_simplex = f_simplex[order]
+            
+            # Centroid
+            centroid = np.mean(simplex[:-1], axis=0)
+            
+            # Reflection
+            xr = clip(centroid + alpha * (centroid - simplex[-1]))
+            if elapsed() >= max_time * 0.95:
+                return
+            fr = eval_func(xr)
+            
+            if fr < f_simplex[0]:
+                # Expansion
+                xe = clip(centroid + gamma * (xr - centroid))
+                if elapsed() >= max_time * 0.95:
+                    return
+                fe = eval_func(xe)
+                if fe < fr:
+                    simplex[-1] = xe
+                    f_simplex[-1] = fe
+                else:
+                    simplex[-1] = xr
+                    f_simplex[-1] = fr
+            elif fr < f_simplex[-2]:
+                simplex[-1] = xr
+                f_simplex[-1] = fr
+            else:
+                # Contraction
+                if fr < f_simplex[-1]:
+                    xc = clip(centroid + rho * (xr - centroid))
+                else:
+                    xc = clip(centroid + rho * (simplex[-1] - centroid))
+                if elapsed() >= max_time * 0.95:
+                    return
+                fc = eval_func(xc)
+                
+                if fc < min(fr, f_simplex[-1]):
+                    simplex[-1] = xc
+                    f_simplex[-1] = fc
+                else:
+                    # Shrink
+                    for i in range(1, n + 1):
+                        if elapsed() >= max_time * 0.95:
+                            return
+                        simplex[i] = clip(simplex[0] + sigma_nm * (simplex[i] - simplex[0]))
+                        f_simplex[i] = eval_func(simplex[i])
+            
+            # Check convergence
+            if np.std(f_simplex) < 1e-15:
+                return
+    
+    # Strategy: allocate time between methods
+    total_time = max_time
+    
+    # Run CMA-ES with restarts (60% of time)
+    cmaes_end = 0.60
+    restart_count = 0
+    while elapsed() < total_time * cmaes_end:
+        if elapsed() >= max_time * 0.95:
+            return best
+        
+        if best_x is not None and restart_count > 0 and np.random.rand() < 0.3:
+            x0 = best_x + 0.1 * ranges * np.random.randn(dim)
+            x0 = clip(x0)
+            sigma0 = 0.1 * np.max(ranges)
+        else:
+            x0 = lower + np.random.rand(dim) * ranges
+            sigma0 = 0.3 * np.max(ranges)
+        
+        run_cmaes(x0, sigma0, cmaes_end)
+        restart_count += 1
+    
+    # Run DE (25% of time)
+    de_end_time = total_time * 0.85
+    if elapsed() < de_end_time:
+        run_de(de_end_time)
+    
+    # Run Nelder-Mead local search from best (remaining time)
+    if best_x is not None and elapsed() < total_time * 0.95:
+        run_nelder_mead(best_x.copy(), total_time * 0.95)
+    
+    return best
+```";;;ec9f0cb3-16db-4279-a89d-c5fe8e969bf5;{}
+2026-03-04 21:27:16.986947+00:00;0;user;"Generate algorithm.
+";;;640ddd22-fb5c-4098-89fe-ab81c7500b6b;{}
+2026-03-04 21:27:52.576855+00:00;2636;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: CMA-ES inspired search ---
+    # Initialize population
+    pop_size = 4 + int(3 * np.log(dim))
+    pop_size = max(pop_size, 10)
+    
+    # Initialize center at random or middle of bounds
+    mu = (lower + upper) / 2.0
+    sigma = np.mean(upper - lower) / 4.0
+    
+    # First evaluate center
+    fitness = func(mu)
+    if fitness < best:
+        best = fitness
+        best_params = mu.copy()
+    
+    # Simple CMA-ES implementation
+    # Strategy parameters
+    mu_eff_count = pop_size // 2
+    weights = np.log(mu_eff_count + 0.5) - np.log(np.arange(1, mu_eff_count + 1))
+    weights = weights / np.sum(weights)
+    mu_eff = 1.0 / np.sum(weights**2)
+    
+    # Adaptation parameters
+    cc = (4 + mu_eff / dim) / (dim + 4 + 2 * mu_eff / dim)
+    cs = (mu_eff + 2) / (dim + mu_eff + 5)
+    c1 = 2 / ((dim + 1.3)**2 + mu_eff)
+    cmu = min(1 - c1, 2 * (mu_eff - 2 + 1/mu_eff) / ((dim + 2)**2 + mu_eff))
+    damps = 1 + 2 * max(0, np.sqrt((mu_eff - 1) / (dim + 1)) - 1) + cs
+    
+    # State variables
+    pc = np.zeros(dim)
+    ps = np.zeros(dim)
+    
+    if dim <= 200:
+        C = np.eye(dim)
+        use_full_cov = True
+    else:
+        # For high dimensions, use diagonal approximation
+        C_diag = np.ones(dim)
+        use_full_cov = False
+    
+    chiN = np.sqrt(dim) * (1 - 1/(4*dim) + 1/(21*dim**2))
+    
+    generation = 0
+    stagnation_count = 0
+    last_best = best
+    
+    # Multiple restarts
+    restart_count = 0
+    
+    while True:
+        passed_time = (datetime.now() - start)
+        if passed_time >= timedelta(seconds=max_time * 0.95):
+            return best
+        
+        # Generate offspring
+        if use_full_cov:
+            try:
+                eigvals, eigvecs = np.linalg.eigh(C)
+                eigvals = np.maximum(eigvals, 1e-20)
+                sqrt_C = eigvecs @ np.diag(np.sqrt(eigvals)) @ eigvecs.T
+                invsqrt_C = eigvecs @ np.diag(1.0/np.sqrt(eigvals)) @ eigvecs.T
+            except:
+                C = np.eye(dim)
+                sqrt_C = np.eye(dim)
+                invsqrt_C = np.eye(dim)
+                eigvals = np.ones(dim)
+        else:
+            sqrt_C_diag = np.sqrt(np.maximum(C_diag, 1e-20))
+            invsqrt_C_diag = 1.0 / sqrt_C_diag
+        
+        # Sample population
+        arz = np.random.randn(pop_size, dim)
+        arx = np.zeros((pop_size, dim))
+        
+        for k in range(pop_size):
+            if use_full_cov:
+                arx[k] = mu + sigma * (sqrt_C @ arz[k])
+            else:
+                arx[k] = mu + sigma * (sqrt_C_diag * arz[k])
+            # Clip to bounds
+            arx[k] = np.clip(arx[k], lower, upper)
+        
+        # Evaluate
+        fitnesses = np.zeros(pop_size)
+        for k in range(pop_size):
+            passed_time = (datetime.now() - start)
+            if passed_time >= timedelta(seconds=max_time * 0.95):
+                return best
+            fitnesses[k] = func(arx[k])
+            if fitnesses[k] < best:
+                best = fitnesses[k]
+                best_params = arx[k].copy()
+        
+        # Sort by fitness
+        idx = np.argsort(fitnesses)
+        
+        # Recombination
+        old_mu = mu.copy()
+        mu = np.zeros(dim)
+        for i in range(mu_eff_count):
+            mu += weights[i] * arx[idx[i]]
+        
+        # Update evolution paths
+        if use_full_cov:
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mu_eff) * (invsqrt_C @ (mu - old_mu)) / sigma
+        else:
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mu_eff) * (invsqrt_C_diag * (mu - old_mu)) / sigma
+        
+        hsig = int(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs)**(2 * (generation + 1))) / chiN < 1.4 + 2/(dim + 1))
+        
+        pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mu_eff) * (mu - old_mu) / sigma
+        
+        # Update covariance matrix
+        if use_full_cov:
+            artmp = np.zeros((mu_eff_count, dim))
+            for i in range(mu_eff_count):
+                artmp[i] = (arx[idx[i]] - old_mu) / sigma
+            
+            C = (1 - c1 - cmu) * C + \
+                c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C) + \
+                cmu * sum(weights[i] * np.outer(artmp[i], artmp[i]) for i in range(mu_eff_count))
+            
+            # Enforce symmetry
+            C = (C + C.T) / 2
+        else:
+            artmp = np.zeros((mu_eff_count, dim))
+            for i in range(mu_eff_count):
+                artmp[i] = (arx[idx[i]] - old_mu) / sigma
+            
+            C_diag = (1 - c1 - cmu) * C_diag + \
+                     c1 * (pc**2 + (1 - hsig) * cc * (2 - cc) * C_diag) + \
+                     cmu * sum(weights[i] * artmp[i]**2 for i in range(mu_eff_count))
+        
+        # Update step size
+        sigma = sigma * np.exp((cs / damps) * (np.linalg.norm(ps) / chiN - 1))
+        sigma = min(sigma, np.mean(upper - lower))  # prevent explosion
+        
+        generation += 1
+        
+        # Check for stagnation
+        if abs(best - last_best) < 1e-12:
+            stagnation_count += 1
+        else:
+            stagnation_count = 0
+            last_best = best
+        
+        # Restart if stagnated or sigma too small
+        if stagnation_count > 20 + dim or sigma < 1e-16:
+            restart_count += 1
+            
+            # Restart with increased population size
+            pop_size_mult = 1 + restart_count
+            pop_size = (4 + int(3 * np.log(dim))) * pop_size_mult
+            pop_size = min(pop_size, 500)
+            
+            mu_eff_count = pop_size // 2
+            weights = np.log(mu_eff_count + 0.5) - np.log(np.arange(1, mu_eff_count + 1))
+            weights = weights / np.sum(weights)
+            mu_eff = 1.0 / np.sum(weights**2)
+            
+            cc = (4 + mu_eff / dim) / (dim + 4 + 2 * mu_eff / dim)
+            cs = (mu_eff + 2) / (dim + mu_eff + 5)
+            c1 = 2 / ((dim + 1.3)**2 + mu_eff)
+            cmu = min(1 - c1, 2 * (mu_eff - 2 + 1/mu_eff) / ((dim + 2)**2 + mu_eff))
+            damps = 1 + 2 * max(0, np.sqrt((mu_eff - 1) / (dim + 1)) - 1) + cs
+            
+            # Random restart near best or random
+            if np.random.rand() < 0.5 and best_params is not None:
+                mu = best_params + 0.1 * (upper - lower) * np.random.randn(dim)
+                mu = np.clip(mu, lower, upper)
+                sigma = np.mean(upper - lower) / 8.0
+            else:
+                mu = np.array([np.random.uniform(l, u) for l, u in bounds])
+                sigma = np.mean(upper - lower) / 4.0
+            
+            pc = np.zeros(dim)
+            ps = np.zeros(dim)
+            if use_full_cov:
+                C = np.eye(dim)
+            else:
+                C_diag = np.ones(dim)
+            
+            stagnation_count = 0
+            generation = 0
+            last_best = best
+    
+    return best
+```";;;fcc93df4-2d6f-42ef-89e7-6bb27b2f9a0b;{}
+2026-03-04 21:42:07.835349+00:00;0;user;"Generate algorithm.
+";;;6dca3e32-d14d-421d-ba8e-59c2f1ded55b;{}
+2026-03-04 21:42:50.789638+00:00;3028;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: CMA-ES inspired search ---
+    # Initialize population
+    pop_size = min(4 + int(3 * np.log(dim)), 50)
+    if pop_size % 2 != 0:
+        pop_size += 1
+    
+    # Start with multiple restarts strategy
+    def time_left():
+        return max_time - (datetime.now() - start).total_seconds()
+    
+    def clip_to_bounds(x):
+        return np.clip(x, lower, upper)
+    
+    # Evaluate a point
+    def evaluate(x):
+        nonlocal best, best_params
+        x_clipped = clip_to_bounds(x)
+        f = func(x_clipped)
+        if f < best:
+            best = f
+            best_params = x_clipped.copy()
+        return f
+    
+    # --- Initial Latin Hypercube Sampling ---
+    n_init = min(max(10 * dim, 50), 200)
+    for i in range(n_init):
+        if time_left() < 0.1:
+            return best
+        x = np.array([np.random.uniform(l, u) for l, u in bounds])
+        evaluate(x)
+    
+    # --- CMA-ES implementation ---
+    def run_cmaes(x0, sigma0, budget_fraction=1.0):
+        nonlocal best, best_params
+        
+        n = dim
+        lam = pop_size
+        mu = lam // 2
+        
+        # Weights
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mueff = 1.0 / np.sum(weights**2)
+        
+        # Adaptation parameters
+        cc = (4 + mueff/n) / (n + 4 + 2*mueff/n)
+        cs = (mueff + 2) / (n + mueff + 5)
+        c1 = 2 / ((n + 1.3)**2 + mueff)
+        cmu_val = min(1 - c1, 2 * (mueff - 2 + 1/mueff) / ((n + 2)**2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1)/(n + 1)) - 1) + cs
+        
+        # State variables
+        mean = x0.copy()
+        sigma = sigma0
+        pc = np.zeros(n)
+        ps = np.zeros(n)
+        
+        # Use diagonal covariance for high dimensions
+        use_full_cov = (n <= 100)
+        
+        if use_full_cov:
+            C = np.eye(n)
+            eigeneval = 0
+            B = np.eye(n)
+            D = np.ones(n)
+        else:
+            diagC = np.ones(n)
+        
+        chiN = np.sqrt(n) * (1 - 1/(4*n) + 1/(21*n**2))
+        
+        generation = 0
+        
+        while True:
+            if time_left() < 0.2:
+                return
+            
+            # Sample population
+            arx = np.zeros((lam, n))
+            arfitness = np.zeros(lam)
+            
+            for k in range(lam):
+                if time_left() < 0.1:
+                    return
+                
+                if use_full_cov:
+                    z = np.random.randn(n)
+                    arx[k] = mean + sigma * (B @ (D * z))
+                else:
+                    arx[k] = mean + sigma * np.sqrt(diagC) * np.random.randn(n)
+                
+                arfitness[k] = evaluate(arx[k])
+            
+            # Sort by fitness
+            arindex = np.argsort(arfitness)
+            
+            # Recombination
+            old_mean = mean.copy()
+            selected = arx[arindex[:mu]]
+            mean = np.dot(weights, selected)
+            
+            # CSA
+            if use_full_cov:
+                invsqrtC = B @ np.diag(1.0 / D) @ B.T
+                ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * (invsqrtC @ (mean - old_mean) / sigma)
+            else:
+                ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * ((mean - old_mean) / sigma) / np.sqrt(diagC)
+            
+            hsig = int(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs)**(2 * (generation + 1))) / chiN < 1.4 + 2/(n + 1))
+            
+            # CCA
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (mean - old_mean) / sigma
+            
+            # Covariance matrix adaptation
+            artmp = (selected - old_mean) / sigma
+            
+            if use_full_cov:
+                C = (1 - c1 - cmu_val) * C + \
+                    c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C) + \
+                    cmu_val * (artmp.T @ np.diag(weights) @ artmp)
+                
+                # Enforce symmetry
+                C = np.triu(C) + np.triu(C, 1).T
+                
+                eigeneval += lam
+                if eigeneval >= lam / (c1 + cmu_val) / n / 10:
+                    eigeneval = 0
+                    try:
+                        D_sq, B = np.linalg.eigh(C)
+                        D_sq = np.maximum(D_sq, 1e-20)
+                        D = np.sqrt(D_sq)
+                    except:
+                        C = np.eye(n)
+                        B = np.eye(n)
+                        D = np.ones(n)
+            else:
+                diagC = (1 - c1 - cmu_val) * diagC + \
+                        c1 * (pc**2 + (1 - hsig) * cc * (2 - cc) * diagC) + \
+                        cmu_val * np.sum(weights[:, None] * artmp**2, axis=0)
+                diagC = np.maximum(diagC, 1e-20)
+            
+            # Sigma adaptation
+            sigma = sigma * np.exp((cs / damps) * (np.linalg.norm(ps) / chiN - 1))
+            sigma = min(sigma, np.max(upper - lower))
+            
+            generation += 1
+            
+            # Check termination conditions
+            if sigma < 1e-12:
+                return
+            if generation > 1000 + 500 * n:
+                return
+    
+    # --- Multi-restart CMA-ES ---
+    restart_count = 0
+    sigma_multiplier = 1.0
+    
+    while time_left() > 0.5:
+        if restart_count == 0 and best_params is not None:
+            x0 = best_params.copy()
+            sigma0 = 0.3 * np.mean(upper - lower)
+        elif restart_count < 3 and best_params is not None:
+            # Local restart near best
+            perturbation = np.random.randn(dim) * 0.1 * (upper - lower)
+            x0 = clip_to_bounds(best_params + perturbation)
+            sigma0 = 0.2 * np.mean(upper - lower) * sigma_multiplier
+        else:
+            # Random restart
+            x0 = np.array([np.random.uniform(l, u) for l, u in bounds])
+            sigma0 = 0.3 * np.mean(upper - lower)
+        
+        run_cmaes(x0, sigma0)
+        restart_count += 1
+        sigma_multiplier *= 0.8
+        if sigma_multiplier < 0.05:
+            sigma_multiplier = 1.0
+    
+    # --- Final local refinement with Nelder-Mead ---
+    if best_params is not None and time_left() > 0.3:
+        # Simple Nelder-Mead
+        n = dim
+        simplex = np.zeros((n + 1, n))
+        simplex[0] = best_params.copy()
+        step = 0.01 * (upper - lower)
+        for i in range(n):
+            simplex[i + 1] = best_params.copy()
+            simplex[i + 1][i] += step[i]
+            simplex[i + 1] = clip_to_bounds(simplex[i + 1])
+        
+        f_simplex = np.array([evaluate(simplex[i]) for i in range(n + 1)])
+        
+        alpha, gamma, rho, sigma_nm = 1.0, 2.0, 0.5, 0.5
+        
+        while time_left() > 0.1:
+            order = np.argsort(f_simplex)
+            simplex = simplex[order]
+            f_simplex = f_simplex[order]
+            
+            centroid = np.mean(simplex[:-1], axis=0)
+            
+            # Reflect
+            xr = clip_to_bounds(centroid + alpha * (centroid - simplex[-1]))
+            fr = evaluate(xr)
+            
+            if fr < f_simplex[0]:
+                # Expand
+                xe = clip_to_bounds(centroid + gamma * (xr - centroid))
+                fe = evaluate(xe)
+                if fe < fr:
+                    simplex[-1] = xe
+                    f_simplex[-1] = fe
+                else:
+                    simplex[-1] = xr
+                    f_simplex[-1] = fr
+            elif fr < f_simplex[-2]:
+                simplex[-1] = xr
+                f_simplex[-1] = fr
+            else:
+                # Contract
+                if fr < f_simplex[-1]:
+                    xc = clip_to_bounds(centroid + rho * (xr - centroid))
+                    fc = evaluate(xc)
+                    if fc <= fr:
+                        simplex[-1] = xc
+                        f_simplex[-1] = fc
+                    else:
+                        # Shrink
+                        for i in range(1, n + 1):
+                            simplex[i] = clip_to_bounds(simplex[0] + sigma_nm * (simplex[i] - simplex[0]))
+                            f_simplex[i] = evaluate(simplex[i])
+                else:
+                    xc = clip_to_bounds(centroid + rho * (simplex[-1] - centroid))
+                    fc = evaluate(xc)
+                    if fc < f_simplex[-1]:
+                        simplex[-1] = xc
+                        f_simplex[-1] = fc
+                    else:
+                        # Shrink
+                        for i in range(1, n + 1):
+                            simplex[i] = clip_to_bounds(simplex[0] + sigma_nm * (simplex[i] - simplex[0]))
+                            f_simplex[i] = evaluate(simplex[i])
+    
+    return best
+```";;;5e056c0b-4e72-47e3-9c77-6423336a7bf8;{}
+2026-03-04 21:42:51.921470+00:00;0;user;"Generate algorithm.
+";;;eec036f8-2743-4df8-be08-036c5f40094d;{}
+2026-03-04 21:43:27.953907+00:00;2457;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: Latin Hypercube Sampling for initialization ---
+    n_init = min(max(20 * dim, 100), 500)
+    
+    # Generate LHS-like samples
+    init_samples = np.zeros((n_init, dim))
+    for d in range(dim):
+        perms = np.random.permutation(n_init)
+        init_samples[:, d] = (perms + np.random.uniform(0, 1, n_init)) / n_init
+        init_samples[:, d] = lower[d] + init_samples[:, d] * (upper[d] - lower[d])
+    
+    init_fitness = np.full(n_init, float('inf'))
+    for i in range(n_init):
+        if (datetime.now() - start) >= timedelta(seconds=max_time * 0.95):
+            return best
+        f = func(init_samples[i])
+        init_fitness[i] = f
+        if f < best:
+            best = f
+            best_params = init_samples[i].copy()
+    
+    # --- Phase 2: CMA-ES inspired search ---
+    # Use multiple restarts with different population sizes
+    
+    def cma_es_run(x0, sigma0, time_fraction):
+        nonlocal best, best_params
+        
+        n = dim
+        lam = 4 + int(3 * np.log(n))
+        mu = lam // 2
+        
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mueff = 1.0 / np.sum(weights**2)
+        
+        cc = (4 + mueff/n) / (n + 4 + 2*mueff/n)
+        cs = (mueff + 2) / (n + mueff + 5)
+        c1 = 2 / ((n + 1.3)**2 + mueff)
+        cmu_val = min(1 - c1, 2 * (mueff - 2 + 1/mueff) / ((n + 2)**2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1)/(n + 1)) - 1) + cs
+        
+        pc = np.zeros(n)
+        ps = np.zeros(n)
+        B = np.eye(n)
+        D = np.ones(n)
+        C = np.eye(n)
+        invsqrtC = np.eye(n)
+        eigeneval = 0
+        
+        sigma = sigma0
+        mean = x0.copy()
+        
+        chiN = n**0.5 * (1 - 1/(4*n) + 1/(21*n**2))
+        
+        run_start = datetime.now()
+        run_budget = timedelta(seconds=time_fraction)
+        gen = 0
+        
+        while True:
+            if (datetime.now() - start) >= timedelta(seconds=max_time * 0.98):
+                return
+            if (datetime.now() - run_start) >= run_budget:
+                return
+            
+            # Generate offspring
+            arz = np.random.randn(lam, n)
+            arx = np.zeros((lam, n))
+            for k in range(lam):
+                arx[k] = mean + sigma * (B @ (D * arz[k]))
+                # Clip to bounds
+                arx[k] = np.clip(arx[k], lower, upper)
+            
+            # Evaluate
+            fitvals = np.zeros(lam)
+            for k in range(lam):
+                if (datetime.now() - start) >= timedelta(seconds=max_time * 0.98):
+                    return
+                fitvals[k] = func(arx[k])
+                if fitvals[k] < best:
+                    best = fitvals[k]
+                    best_params = arx[k].copy()
+            
+            # Sort
+            arindex = np.argsort(fitvals)
+            
+            # Recombination
+            old_mean = mean.copy()
+            mean = np.zeros(n)
+            for k in range(mu):
+                mean += weights[k] * arx[arindex[k]]
+            
+            # CSA
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * invsqrtC @ (mean - old_mean) / sigma
+            
+            hsig = int(np.linalg.norm(ps) / np.sqrt(1 - (1 - cs)**(2 * (gen+1))) / chiN < 1.4 + 2/(n+1))
+            
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (mean - old_mean) / sigma
+            
+            # Covariance matrix adaptation
+            artmp = np.zeros((mu, n))
+            for k in range(mu):
+                artmp[k] = (arx[arindex[k]] - old_mean) / sigma
+            
+            C = (1 - c1 - cmu_val) * C + \
+                c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C) + \
+                cmu_val * (artmp.T @ np.diag(weights) @ artmp)
+            
+            # Sigma adaptation
+            sigma = sigma * np.exp((cs / damps) * (np.linalg.norm(ps) / chiN - 1))
+            
+            # Update B, D from C
+            eigeneval += 1
+            if eigeneval >= 1.0 / (c1 + cmu_val) / n / 10 or gen == 0:
+                eigeneval = 0
+                C = np.triu(C) + np.triu(C, 1).T
+                try:
+                    D_sq, B = np.linalg.eigh(C)
+                    D_sq = np.maximum(D_sq, 1e-20)
+                    D = np.sqrt(D_sq)
+                    invsqrtC = B @ np.diag(1.0 / D) @ B.T
+                except:
+                    # Reset if eigendecomposition fails
+                    C = np.eye(n)
+                    D = np.ones(n)
+                    B = np.eye(n)
+                    invsqrtC = np.eye(n)
+                    sigma = sigma0
+            
+            # Stop if sigma gets too small or too large
+            if sigma < 1e-20 or sigma > 1e10:
+                return
+            
+            gen += 1
+    
+    # Sort initial samples and pick best starting points
+    sorted_idx = np.argsort(init_fitness)
+    
+    # Time remaining
+    elapsed = (datetime.now() - start).total_seconds()
+    remaining = max_time - elapsed
+    
+    if remaining <= 0:
+        return best
+    
+    # Multiple CMA-ES restarts from best initial points
+    n_restarts = max(1, min(10, int(remaining / 2)))
+    time_per_restart = remaining * 0.95 / n_restarts
+    
+    # Initial sigma based on bounds range
+    sigma0 = np.mean(upper - lower) * 0.3
+    
+    for r in range(n_restarts):
+        if (datetime.now() - start).total_seconds() >= max_time * 0.95:
+            break
+        
+        if r < min(5, len(sorted_idx)):
+            x0 = init_samples[sorted_idx[r]].copy()
+            cur_sigma = sigma0 * (0.5 if r == 0 else 1.0)
+        else:
+            # Random restart with perturbation from best
+            x0 = best_params.copy() + np.random.randn(dim) * sigma0 * 0.5
+            x0 = np.clip(x0, lower, upper)
+            cur_sigma = sigma0 * 0.5
+        
+        cma_es_run(x0, cur_sigma, time_per_restart)
+    
+    # --- Phase 3: Local refinement with Nelder-Mead style simplex ---
+    if best_params is not None and (datetime.now() - start).total_seconds() < max_time * 0.90:
+        # Simple coordinate-wise refinement
+        step = (upper - lower) * 0.01
+        improved = True
+        while improved:
+            if (datetime.now() - start).total_seconds() >= max_time * 0.98:
+                break
+            improved = False
+            for d in range(dim):
+                if (datetime.now() - start).total_seconds() >= max_time * 0.98:
+                    break
+                for direction in [1, -1]:
+                    trial = best_params.copy()
+                    trial[d] = np.clip(trial[d] + direction * step[d], lower[d], upper[d])
+                    f = func(trial)
+                    if f < best:
+                        best = f
+                        best_params = trial.copy()
+                        improved = True
+            step *= 0.5
+            if np.max(step) < 1e-15:
+                break
+    
+    return best
+```";;;841b98e0-5856-474f-9c5f-64615faba75f;{}
+2026-03-04 21:43:58.588760+00:00;0;user;"Generate algorithm.
+";;;9f20e3fc-fea9-45b2-91dd-ba8576daafcf;{}
+2026-03-04 21:44:43.501431+00:00;3145;assistant;"
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_params = None
+    
+    lower = np.array([b[0] for b in bounds])
+    upper = np.array([b[1] for b in bounds])
+    
+    # --- Phase 1: CMA-ES inspired search ---
+    # Initialize population
+    pop_size = min(4 + int(3 * np.log(dim)), 100)
+    if pop_size % 2 != 0:
+        pop_size += 1
+    
+    # Start with multiple restarts of a Nelder-Mead-like + differential evolution hybrid
+    
+    def clip(x):
+        return np.clip(x, lower, upper)
+    
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def remaining():
+        return max_time - elapsed()
+    
+    # --- Initial Latin Hypercube Sampling ---
+    n_init = min(max(10 * dim, 50), 500)
+    init_samples = np.zeros((n_init, dim))
+    for d in range(dim):
+        perm = np.random.permutation(n_init)
+        for i in range(n_init):
+            init_samples[i, d] = lower[d] + (perm[i] + np.random.random()) / n_init * (upper[d] - lower[d])
+    
+    init_fitness = np.full(n_init, float('inf'))
+    for i in range(n_init):
+        if elapsed() >= max_time * 0.95:
+            break
+        f = func(init_samples[i])
+        init_fitness[i] = f
+        if f < best:
+            best = f
+            best_params = init_samples[i].copy()
+    
+    if remaining() < 0.05 * max_time:
+        return best
+    
+    # --- Phase 2: CMA-ES ---
+    def run_cmaes(x0, sigma0, budget_fraction):
+        nonlocal best, best_params
+        
+        deadline = elapsed() + remaining() * budget_fraction
+        
+        n = len(x0)
+        lam = 4 + int(3 * np.log(n))
+        mu = lam // 2
+        
+        weights = np.log(mu + 0.5) - np.log(np.arange(1, mu + 1))
+        weights = weights / np.sum(weights)
+        mueff = 1.0 / np.sum(weights ** 2)
+        
+        cc = (4 + mueff / n) / (n + 4 + 2 * mueff / n)
+        cs = (mueff + 2) / (n + mueff + 5)
+        c1 = 2 / ((n + 1.3) ** 2 + mueff)
+        cmu = min(1 - c1, 2 * (mueff - 2 + 1 / mueff) / ((n + 2) ** 2 + mueff))
+        damps = 1 + 2 * max(0, np.sqrt((mueff - 1) / (n + 1)) - 1) + cs
+        
+        pc = np.zeros(n)
+        ps = np.zeros(n)
+        B = np.eye(n)
+        D = np.ones(n)
+        C = np.eye(n)
+        invsqrtC = np.eye(n)
+        eigeneval = 0
+        sigma = sigma0
+        mean = x0.copy()
+        chiN = n ** 0.5 * (1 - 1 / (4 * n) + 1 / (21 * n ** 2))
+        
+        generation = 0
+        
+        while elapsed() < deadline and elapsed() < max_time * 0.95:
+            # Sample
+            arz = np.random.randn(lam, n)
+            arx = np.zeros((lam, n))
+            for k in range(lam):
+                arx[k] = clip(mean + sigma * (B @ (D * arz[k])))
+            
+            # Evaluate
+            fitness = np.zeros(lam)
+            for k in range(lam):
+                if elapsed() >= max_time * 0.95:
+                    return
+                fitness[k] = func(arx[k])
+                if fitness[k] < best:
+                    best = fitness[k]
+                    best_params = arx[k].copy()
+            
+            # Sort
+            idx = np.argsort(fitness)
+            arx = arx[idx]
+            arz = arz[idx]
+            
+            # Recombination
+            old_mean = mean.copy()
+            mean = np.sum(weights[:, None] * arx[:mu], axis=0)
+            
+            # Update evolution paths
+            zmean = np.sum(weights[:, None] * arz[:mu], axis=0)
+            ps = (1 - cs) * ps + np.sqrt(cs * (2 - cs) * mueff) * (invsqrtC @ zmean)
+            hsig = (np.linalg.norm(ps) / np.sqrt(1 - (1 - cs) ** (2 * (generation + 1))) / chiN < 1.4 + 2 / (n + 1))
+            pc = (1 - cc) * pc + hsig * np.sqrt(cc * (2 - cc) * mueff) * (B @ (D * zmean))
+            
+            # Update covariance matrix
+            artmp = (arx[:mu] - old_mean) / sigma
+            C = (1 - c1 - cmu) * C + \
+                c1 * (np.outer(pc, pc) + (1 - hsig) * cc * (2 - cc) * C) + \
+                cmu * (artmp.T @ np.diag(weights) @ artmp)
+            
+            # Update sigma
+            sigma *= np.exp((cs / damps) * (np.linalg.norm(ps) / chiN - 1))
+            sigma = min(sigma, np.max(upper - lower))
+            
+            # Update B and D from C
+            generation += 1
+            eigeneval += lam
+            
+            if generation % (1 + int(1 / (10 * n * (c1 + cmu)))) == 0:
+                C = np.triu(C) + np.triu(C, 1).T
+                try:
+                    D_sq, B = np.linalg.eigh(C)
+                    D_sq = np.maximum(D_sq, 1e-20)
+                    D = np.sqrt(D_sq)
+                    invsqrtC = B @ np.diag(1.0 / D) @ B.T
+                except:
+                    # Reset
+                    C = np.eye(n)
+                    B = np.eye(n)
+                    D = np.ones(n)
+                    invsqrtC = np.eye(n)
+            
+            # Check for too small sigma
+            if sigma * np.max(D) < 1e-12 * np.max(upper - lower):
+                break
+    
+    # Sort initial samples and pick top ones for CMA-ES restarts
+    sorted_idx = np.argsort(init_fitness)
+    
+    # Run CMA-ES from best initial point
+    if best_params is not None:
+        sigma0 = 0.3 * np.max(upper - lower)
+        run_cmaes(best_params.copy(), sigma0, 0.5)
+    
+    # --- Phase 3: Restarts with increasing population or from different starting points ---
+    restart_count = 0
+    while elapsed() < max_time * 0.95:
+        restart_count += 1
+        
+        # Pick a starting point: mix of best known + random
+        if restart_count % 3 == 0 or best_params is None:
+            x0 = np.array([np.random.uniform(l, u) for l, u in bounds])
+        else:
+            # Perturb best
+            perturbation = np.random.randn(dim) * 0.3 * (upper - lower)
+            x0 = clip(best_params + perturbation)
+        
+        sigma0 = (0.1 + 0.4 * np.random.random()) * np.max(upper - lower)
+        
+        budget = min(0.3, remaining() / max_time)
+        if budget < 0.01:
+            break
+        run_cmaes(x0, sigma0, budget)
+    
+    # --- Phase 4: Local refinement with Nelder-Mead ---
+    if best_params is not None and remaining() > 0.02 * max_time:
+        # Simple Nelder-Mead
+        n = dim
+        alpha, gamma, rho, sigma_nm = 1.0, 2.0, 0.5, 0.5
+        
+        # Initialize simplex around best
+        simplex = np.zeros((n + 1, n))
+        simplex[0] = best_params.copy()
+        scale = 0.05 * (upper - lower)
+        for i in range(n):
+            simplex[i + 1] = best_params.copy()
+            simplex[i + 1, i] += scale[i] if best_params[i] + scale[i] <= upper[i] else -scale[i]
+        simplex = clip(simplex)
+        
+        f_simplex = np.zeros(n + 1)
+        for i in range(n + 1):
+            if elapsed() >= max_time * 0.95:
+                return best
+            f_simplex[i] = func(simplex[i])
+            if f_simplex[i] < best:
+                best = f_simplex[i]
+                best_params = simplex[i].copy()
+        
+        while elapsed() < max_time * 0.95:
+            order = np.argsort(f_simplex)
+            simplex = simplex[order]
+            f_simplex = f_simplex[order]
+            
+            centroid = np.mean(simplex[:n], axis=0)
+            
+            # Reflect
+            xr = clip(centroid + alpha * (centroid - simplex[n]))
+            fr = func(xr)
+            if fr < best:
+                best = fr
+                best_params = xr.copy()
+            
+            if fr < f_simplex[0]:
+                # Expand
+                xe = clip(centroid + gamma * (xr - centroid))
+                fe = func(xe)
+                if fe < best:
+                    best = fe
+                    best_params = xe.copy()
+                if fe < fr:
+                    simplex[n] = xe
+                    f_simplex[n] = fe
+                else:
+                    simplex[n] = xr
+                    f_simplex[n] = fr
+            elif fr < f_simplex[n - 1]:
+                simplex[n] = xr
+                f_simplex[n] = fr
+            else:
+                # Contract
+                if fr < f_simplex[n]:
+                    xc = clip(centroid + rho * (xr - centroid))
+                else:
+                    xc = clip(centroid + rho * (simplex[n] - centroid))
+                fc = func(xc)
+                if fc < best:
+                    best = fc
+                    best_params = xc.copy()
+                
+                if fc < min(fr, f_simplex[n]):
+                    simplex[n] = xc
+                    f_simplex[n] = fc
+                else:
+                    # Shrink
+                    for i in range(1, n + 1):
+                        simplex[i] = clip(simplex[0] + sigma_nm * (simplex[i] - simplex[0]))
+                        if elapsed() >= max_time * 0.95:
+                            return best
+                        f_simplex[i] = func(simplex[i])
+                        if f_simplex[i] < best:
+                            best = f_simplex[i]
+                            best_params = simplex[i].copy()
+            
+            # Convergence check
+            if np.max(np.abs(f_simplex - f_simplex[0])) < 1e-15:
+                break
+    
+    return best
+```";;;03025499-13b1-406d-afb0-4e8255c6b63f;{}

@@ -1,0 +1,1040 @@
+time;tokens;role;text;path_solution_file;path_solution_metadata;id;metadata
+2026-02-12 10:29:31.551363+00:00;0;system;"Your task is to propose an algorithm to find a set of input parameter values that lead to minimum output value in a limited time. The template for the algorithm is given below. Deliver Python code that is fully operational and self-contained, requiring no external libraries or modifications post-delivery
+
+Glossary:
+func - function that returns output value (float) for an array of input parameter values (np.array).
+dim - (int) dimension of the input vector.
+bounds - (list) specified lower and upper bounds for the input vector values. A pair for each dimension.
+max_time - (int) maximum acceptable time in seconds to return a result.
+
+Template:
+
+def run(func, dim, bounds, max_time):
+
+    [Algorithm body]
+
+    # return fitness of the best found solution
+    return best
+
+Example implementation of a random search algorithm in the given template:
+
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+
+    # Algorithm body
+    while True:
+        passed_time = (datetime.now() - start)
+        if passed_time >= timedelta(seconds=max_time):
+            return best
+
+        params = [np.random.uniform(low, high) for low, high in bounds]
+        fitness = func(params)
+        if best is None or fitness <= best:
+            best = fitness
+        ";;;1eb63ed9-d54c-496f-a0f2-184ed38a021b;{}
+2026-02-12 10:29:31.553024+00:00;0;user;----;;;cb856e9c-c2cf-42b7-b44a-707e3880f427;{}
+2026-02-12 10:30:17.475762+00:00;5183;model;"Here is the fully operational Python code implementing a Differential Evolution algorithm. This approach is generally much more efficient than random search for continuous optimization problems, as it intelligently explores the search space using the differences between existing solutions.
+
+```python
+import numpy as np
+import random
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a function using the Differential Evolution algorithm within a time limit.
+    """"""
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    # --- Differential Evolution Hyperparameters ---
+    # F: Mutation factor (typically 0.5 to 1.0) controls differential weight
+    F = 0.8
+    # CR: Crossover probability (0.0 to 1.0) controls diversity
+    CR = 0.9
+    # Population size: adaptive to dimension, capped for performance
+    pop_size = max(10, int(5 * dim))
+    if pop_size > 50:
+        pop_size = 50
+
+    # --- Initialization ---
+    # Prepare bounds as numpy arrays for vectorized operations
+    min_b = np.array([b[0] for b in bounds])
+    max_b = np.array([b[1] for b in bounds])
+    diff_b = max_b - min_b
+    
+    # Initialize population with random values within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Array to store fitness of current population
+    fitness_scores = np.full(pop_size, float('inf'))
+    
+    # Track global best
+    best = float('inf')
+
+    # --- Initial Evaluation ---
+    for i in range(pop_size):
+        # Check time constraint
+        if datetime.now() - start_time >= time_limit:
+            return best
+            
+        val = func(population[i])
+        fitness_scores[i] = val
+        
+        if val < best:
+            best = val
+
+    # --- Main Optimization Loop ---
+    while True:
+        for i in range(pop_size):
+            # Check time constraint strictly before every evaluation
+            if datetime.now() - start_time >= time_limit:
+                return best
+
+            # 1. Mutation (DE/rand/1 strategy)
+            # Select 3 distinct random individuals different from current 'i'
+            idxs = list(range(pop_size))
+            idxs.remove(i)
+            # Using random.sample is efficient for small counts
+            a_idx, b_idx, c_idx = random.sample(idxs, 3)
+            
+            a = population[a_idx]
+            b = population[b_idx]
+            c = population[c_idx]
+
+            # Create mutant vector
+            mutant = a + F * (b - c)
+            
+            # Enforce bounds (clipping)
+            mutant = np.clip(mutant, min_b, max_b)
+
+            # 2. Crossover (Binomial)
+            # Generate mask for crossover
+            cross_points = np.random.rand(dim) < CR
+            # Ensure at least one dimension is changed to avoid duplicating parent
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            # Construct trial vector
+            trial = np.where(cross_points, mutant, population[i])
+
+            # 3. Selection
+            # Evaluate trial vector
+            f_trial = func(trial)
+
+            # Greedy selection: if trial is better or equal, it replaces the parent
+            if f_trial <= fitness_scores[i]:
+                fitness_scores[i] = f_trial
+                population[i] = trial
+                
+                # Update global best if found
+                if f_trial < best:
+                    best = f_trial
+
+    # return fitness of the best found solution
+    return best
+```";;;56bc9ce3-a220-468a-9196-40a625d1f8c2;{}
+2026-02-12 10:45:17.712668+00:00;0;user;"Generate algorithm.
+";;;9d5a9b15-df35-472a-a6ac-28fc388c0593;{}
+2026-02-12 10:46:14.701234+00:00;6192;model;"Here is the fully operational, self-contained Python code implementing a Differential Evolution algorithm. This approach is robust for finding global minima of black-box functions within a fixed time frame.
+
+```python
+import numpy as np
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes the output of func using Differential Evolution within max_time.
+    """"""
+    start_time = time.time()
+    
+    # --- Hyperparameters ---
+    # Population size: Scaled by dimension but capped to ensure speed 
+    # if the function evaluation is slow or time is short.
+    pop_size = min(max(20, 10 * dim), 50)
+    mutation_factor = 0.8  # F
+    crossover_prob = 0.7   # CR
+    
+    # --- Initialization ---
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # Initialize population with random values within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    fitness = np.full(pop_size, float('inf'))
+    best_val = float('inf')
+    
+    # --- Initial Evaluation ---
+    # We iterate manually to check time constraints strictly between evaluations
+    for i in range(pop_size):
+        if time.time() - start_time >= max_time:
+            return best_val
+            
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_val:
+            best_val = val
+
+    # --- Main Optimization Loop ---
+    while True:
+        # Check time before generating next generation
+        if time.time() - start_time >= max_time:
+            return best_val
+
+        # 1. Mutation: V = a + F * (b - c)
+        # Generate random indices for a, b, c
+        idxs_a = np.random.randint(0, pop_size, pop_size)
+        idxs_b = np.random.randint(0, pop_size, pop_size)
+        idxs_c = np.random.randint(0, pop_size, pop_size)
+        
+        # Create mutant vectors
+        mutant = population[idxs_a] + mutation_factor * (population[idxs_b] - population[idxs_c])
+        
+        # Clip mutants to bounds to remain in valid search space
+        mutant = np.clip(mutant, min_b, max_b)
+        
+        # 2. Crossover: Create trial vectors
+        # Create a mask: True where we take from mutant, False from original
+        cross_points = np.random.rand(pop_size, dim) < crossover_prob
+        
+        # Ensure at least one parameter is taken from the mutant (Standard DE rule)
+        random_dims = np.random.randint(0, dim, pop_size)
+        cross_points[np.arange(pop_size), random_dims] = True
+        
+        # Construct trial population
+        trial_pop = np.where(cross_points, mutant, population)
+        
+        # 3. Selection
+        for i in range(pop_size):
+            # Strict time check before every function evaluation
+            if time.time() - start_time >= max_time:
+                return best_val
+            
+            f_trial = func(trial_pop[i])
+            
+            # If trial is better, replace the individual in the population
+            if f_trial < fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial_pop[i]
+                
+                # Update global best found so far
+                if f_trial < best_val:
+                    best_val = f_trial
+
+    return best_val
+```";;;b15f4789-6f90-46f8-9ab8-4df3c38c0e37;{}
+2026-02-12 11:01:14.931269+00:00;0;user;"Generate algorithm.
+";;;92518bfc-3442-42c4-874e-564caaaafc77;{}
+2026-02-12 11:02:17.802575+00:00;6927;model;"Here is the fully operational, self-contained Python code implementing a Differential Evolution algorithm. This algorithm is robust for finding global minima in continuous spaces and checks the time limit strictly before every function evaluation to ensure compliance with `max_time`.
+
+```python
+import numpy as np
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Finds the input parameters that minimize the output of func within max_time 
+    using a Differential Evolution algorithm.
+    """"""
+    # Start the timer immediately
+    start_time = time.time()
+    
+    # Pre-process bounds into numpy arrays for faster vectorized operations
+    bounds_array = np.array(bounds)
+    lower_bounds = bounds_array[:, 0]
+    upper_bounds = bounds_array[:, 1]
+    diff_bounds = upper_bounds - lower_bounds
+
+    # --- Hyperparameters ---
+    # Population size: Standard heuristic is 10 to 15 times the dimension.
+    # We use a dynamic size but limit it to ensure we don't spend too long initializing.
+    pop_size = max(10, 15 * dim)
+    
+    # Differential Evolution parameters
+    mutation_factor = 0.8        # [0, 2] Controls amplification of differential variation
+    crossover_probability = 0.7  # [0, 1] Controls probability of parameter inheritance
+
+    # Initialize Population containers
+    population = np.empty((pop_size, dim))
+    fitness_values = np.empty(pop_size)
+    best_fitness = float('inf')
+
+    # --- Initialization Phase ---
+    # We initialize individuals one by one to allow early exit if max_time is very short
+    for i in range(pop_size):
+        if time.time() - start_time >= max_time:
+            return best_fitness
+
+        # Generate random individual within bounds
+        ind = lower_bounds + np.random.rand(dim) * diff_bounds
+        population[i] = ind
+        
+        # Evaluate fitness
+        val = func(ind)
+        fitness_values[i] = val
+        
+        # Track global best
+        if val < best_fitness:
+            best_fitness = val
+
+    # --- Evolution Phase ---
+    while True:
+        # Loop through the population
+        for i in range(pop_size):
+            # Check time limit before every calculation
+            if time.time() - start_time >= max_time:
+                return best_fitness
+
+            # 1. Mutation: Select 3 distinct random indices distinct from current i
+            # Using a while loop is generally faster than generating a list of exclusions for small selections
+            a, b, c = i, i, i
+            while a == i: 
+                a = np.random.randint(0, pop_size)
+            while b == i or b == a: 
+                b = np.random.randint(0, pop_size)
+            while c == i or c == a or c == b: 
+                c = np.random.randint(0, pop_size)
+
+            p_a, p_b, p_c = population[a], population[b], population[c]
+
+            # Create mutant vector: v = a + F * (b - c)
+            mutant = p_a + mutation_factor * (p_b - p_c)
+            
+            # Clip mutant to ensure it stays within specified bounds
+            mutant = np.clip(mutant, lower_bounds, upper_bounds)
+
+            # 2. Crossover: Create trial vector
+            # Select which dimensions come from mutant based on crossover probability
+            cross_points = np.random.rand(dim) < crossover_probability
+            
+            # Ensure at least one dimension is changed (standard DE requirement)
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            # Construct trial vector
+            trial_vector = np.where(cross_points, mutant, population[i])
+
+            # 3. Selection: Greedy approach
+            trial_fitness = func(trial_vector)
+
+            # If trial is better, replace the target individual
+            if trial_fitness < fitness_values[i]:
+                fitness_values[i] = trial_fitness
+                population[i] = trial_vector
+                
+                # Update global best if found
+                if trial_fitness < best_fitness:
+                    best_fitness = trial_fitness
+
+    return best_fitness
+```";;;fd1fb604-69fa-4a6a-bf2f-79b1ecd655eb;{}
+2026-02-12 11:17:18.030646+00:00;0;user;"Generate algorithm.
+";;;5c598562-1fdd-45cf-a4ad-0728e516f70f;{}
+2026-02-12 11:17:52.228244+00:00;4805;model;"Here is the complete, self-contained Python code implementing a Differential Evolution algorithm. This method is robust for continuous global optimization problems and typically outperforms simple random search by intelligently evolving the population of solutions.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a function 'func' using Differential Evolution (DE) within 'max_time'.
+    """"""
+    # 1. Initialization and Configuration
+    start_time = datetime.now()
+    end_time = start_time + timedelta(seconds=max_time)
+    
+    # Extract bound arrays for vectorized operations
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # DE Hyperparameters
+    # Population size: larger allows more exploration but fewer generations per second.
+    # We use a dynamic size based on dimension, capped to ensure speed.
+    pop_size = max(5, 10 * dim)
+    if pop_size > 50: 
+        pop_size = 50
+        
+    mutation_factor = 0.8  # F: Amplification of differential variation
+    crossover_prob = 0.7   # CR: Probability of crossover
+    
+    # Initialize Population (pop_size x dim)
+    # Random values scaled to the bounds
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Track fitness of the population
+    fitnesses = np.full(pop_size, float('inf'))
+    best_fitness = float('inf')
+    best_idx = -1
+
+    # 2. Initial Evaluation
+    # Evaluate the initial population to establish a baseline best
+    for i in range(pop_size):
+        # Time check
+        if datetime.now() >= end_time:
+            return best_fitness
+        
+        val = func(population[i])
+        fitnesses[i] = val
+        
+        if val < best_fitness:
+            best_fitness = val
+            best_idx = i
+
+    # 3. Optimization Loop (Evolution)
+    # Strategy: DE/rand/1/bin (Random target vector, 1 difference vector, binomial crossover)
+    while True:
+        for i in range(pop_size):
+            # Strict time check before every function evaluation
+            if datetime.now() >= end_time:
+                return best_fitness
+            
+            # --- Mutation ---
+            # Select 3 distinct random indices (a, b, c) different from current index i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a, b, c = np.random.choice(candidates, 3, replace=False)
+            
+            x_a = population[a]
+            x_b = population[b]
+            x_c = population[c]
+            
+            # Generate mutant vector: v = a + F * (b - c)
+            mutant = x_a + mutation_factor * (x_b - x_c)
+            
+            # Constrain mutant to bounds (clipping)
+            mutant = np.clip(mutant, min_b, max_b)
+            
+            # --- Crossover ---
+            # Create trial vector by mixing mutant and current population vector
+            # Perform binomial crossover
+            rand_vals = np.random.rand(dim)
+            mask = rand_vals < crossover_prob
+            
+            # Ensure at least one parameter comes from the mutant to ensure evolution
+            j_rand = np.random.randint(dim)
+            mask[j_rand] = True
+            
+            trial_vector = np.where(mask, mutant, population[i])
+            
+            # --- Selection ---
+            # Evaluate trial vector
+            f_trial = func(trial_vector)
+            
+            # Greedy selection: if trial is better, replace current
+            if f_trial < fitnesses[i]:
+                fitnesses[i] = f_trial
+                population[i] = trial_vector
+                
+                # Update global best found so far
+                if f_trial < best_fitness:
+                    best_fitness = f_trial
+
+    # Return fitness of the best found solution
+    return best_fitness
+```";;;521ae253-1d29-46d0-961c-ae8406acdd43;{}
+2026-02-12 11:32:52.455674+00:00;0;user;"Generate algorithm.
+";;;14ab6c34-7ae1-4327-8bb2-b9af9b328683;{}
+2026-02-12 11:33:39.639867+00:00;5422;model;"Here is a fully operational, self-contained implementation of the Differential Evolution algorithm. This algorithm is robust for finding global minima in continuous search spaces without requiring gradient information, making it suitable for black-box optimization within a time limit.
+
+```python
+import numpy as np
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Differential Evolution (DE) algorithm to minimize func within max_time.
+    """"""
+    start_time = time.time()
+    
+    # --- Hyperparameters ---
+    # Population size: Higher is more robust but slower per generation.
+    # We use a dynamic size capped at 50 to ensure iterations occur 
+    # quickly enough even for high dimensions or short time limits.
+    pop_size = max(10, min(50, 5 * dim))
+    
+    mutation_factor = 0.8    # Scaling factor (F)
+    crossover_prob = 0.7     # Crossover probability (CR)
+
+    # --- Initialization ---
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Generate initial population uniformly within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Track fitness and global best
+    fitness = np.full(pop_size, float('inf'))
+    best = float('inf')
+    
+    # Evaluate initial population
+    # We check time within this loop to handle very expensive functions or short limits
+    for i in range(pop_size):
+        if time.time() - start_time >= max_time:
+            # If time is up, return best found so far. 
+            # If no evaluations completed, evaluate one random solution.
+            if best == float('inf'):
+                return func(population[0])
+            return best
+
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best:
+            best = val
+
+    # --- Main Optimization Loop ---
+    # Strategy: DE/rand/1/bin
+    while True:
+        for i in range(pop_size):
+            # Check time constraint strictly before every evaluation
+            if time.time() - start_time >= max_time:
+                return best
+
+            # 1. Mutation: Select 3 distinct random individuals (r1, r2, r3) != i
+            candidates = list(range(pop_size))
+            candidates.remove(i)
+            r1, r2, r3 = np.random.choice(candidates, 3, replace=False)
+            
+            # Generate mutant vector: a + F * (b - c)
+            mutant = population[r1] + mutation_factor * (population[r2] - population[r3])
+            
+            # Constraint handling: Clip values to stay within bounds
+            mutant = np.clip(mutant, min_b, max_b)
+
+            # 2. Crossover: Binomial
+            cross_points = np.random.rand(dim) < crossover_prob
+            # Ensure at least one parameter is taken from mutant to avoid stagnation
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial_vector = np.where(cross_points, mutant, population[i])
+
+            # 3. Selection
+            trial_fitness = func(trial_vector)
+
+            if trial_fitness < fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial_vector
+                
+                # Update global best immediately
+                if trial_fitness < best:
+                    best = trial_fitness
+
+    return best
+```";;;5ea55b88-5c36-4a34-a10d-f55fbcf063a0;{}
+2026-02-12 11:48:39.870919+00:00;0;user;"Generate algorithm.
+";;;7b09cedb-6670-4f8c-9b0b-dc429c5f9bc4;{}
+2026-02-12 11:50:07.011519+00:00;9416;model;"Here is a fully operational and self-contained algorithm implementing **Differential Evolution (DE)** to solve the optimization problem. DE is a robust, global optimization method well-suited for black-box functions and continuous parameter spaces.
+
+```python
+import numpy as np
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a black-box function using the Differential Evolution algorithm
+    within a specified time limit.
+    """"""
+    start_time = time.time()
+    
+    # --- Algorithm Configuration ---
+    # Population size: A trade-off between search diversity and speed.
+    # We use a dynamic size based on dimension but capped at 50 to ensure
+    # the algorithm performs sufficient generations if func is computationally expensive.
+    pop_size = max(10, min(50, 5 * dim))
+    
+    # DE Hyperparameters (Standard values)
+    mutation_factor = 0.8  # F: Weight for differential mutation
+    crossover_prob = 0.7   # CR: Probability of crossover
+    
+    # --- Initialization ---
+    # Convert bounds to numpy arrays for efficient vector operations
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    
+    # Initialize population uniformly within bounds
+    # Shape: (pop_size, dim)
+    population = np.random.uniform(low=min_b, high=max_b, size=(pop_size, dim))
+    fitness = np.full(pop_size, float('inf'))
+    
+    best_val = float('inf')
+    
+    # --- Initial Evaluation ---
+    # Evaluate the starting population, checking time constraints strictly
+    for i in range(pop_size):
+        if time.time() - start_time >= max_time:
+            return best_val
+        
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_val:
+            best_val = val
+
+    # --- Main Optimization Loop ---
+    while True:
+        # Iterate through each individual in the population
+        for i in range(pop_size):
+            # Check time limit at every step to ensure strict adherence
+            if time.time() - start_time >= max_time:
+                return best_val
+            
+            # 1. Mutation: Select 3 distinct random individuals (a, b, c) distinct from i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a_idx, b_idx, c_idx = np.random.choice(candidates, 3, replace=False)
+            
+            a = population[a_idx]
+            b = population[b_idx]
+            c = population[c_idx]
+            
+            # Create mutant vector: V = a + F * (b - c)
+            mutant = a + mutation_factor * (b - c)
+            
+            # 2. Crossover: Create trial vector by mixing mutant and target
+            rand_vals = np.random.rand(dim)
+            cross_points = rand_vals < crossover_prob
+            
+            # Ensure at least one parameter comes from the mutant (DE requirement)
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, population[i])
+            
+            # 3. Boundary Handling: Clip values to stay within bounds
+            trial = np.clip(trial, min_b, max_b)
+            
+            # 4. Selection: Evaluate trial vector
+            trial_fitness = func(trial)
+            
+            # Greedy selection: if trial is better or equal, replace target
+            if trial_fitness <= fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial
+                
+                # Update global best found so far
+                if trial_fitness < best_val:
+                    best_val = trial_fitness
+                    
+    return best_val
+```";;;6d08ffcf-bbc1-414e-8328-bd8a6cd9eff9;{}
+2026-02-12 12:05:07.239009+00:00;0;user;"Generate algorithm.
+";;;8a01652c-0f82-4136-b383-728c2936a82e;{}
+2026-02-12 12:05:45.932169+00:00;4458;model;"Here is a fully operational, self-contained Python implementation using **Differential Evolution (DE)**.
+
+Differential Evolution is a robust, stochastic global optimization algorithm that works well for continuous parameter spaces without requiring gradient information. It is generally more efficient than random search for finding minima in multi-dimensional spaces.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Finds the minimum of a function using Differential Evolution within a time limit.
+    """"""
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    # --- Algorithm Parameters ---
+    # Population size: larger means more diversity but slower generations.
+    # We scale it with dimension but cap it to ensure iterations run within time limits.
+    pop_size = max(10, 15 * dim)
+    pop_size = min(pop_size, 100) # Cap population to prevent slow initialization
+    
+    mutation_factor = 0.8     # F: Controls the amplification of differential variation
+    crossover_prob = 0.7      # CR: Probability of crossover
+    
+    # --- Initialization ---
+    # Convert bounds to numpy arrays for vectorized operations
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+    
+    # Initialize population with random values within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Evaluate initial population fitness
+    fitness = np.full(pop_size, float('inf'))
+    
+    # We must check time even during initialization if evaluation is very slow
+    best = float('inf')
+    best_idx = -1
+    
+    for i in range(pop_size):
+        if (datetime.now() - start_time) >= time_limit:
+            return best if best != float('inf') else func(population[0])
+            
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best:
+            best = val
+            best_idx = i
+
+    # --- Evolution Loop ---
+    while True:
+        # Check time constraint at the start of each generation
+        if (datetime.now() - start_time) >= time_limit:
+            return best
+            
+        # Iterate through the population
+        for i in range(pop_size):
+            # Check time frequently (inside loop) to adhere strictly to max_time
+            if (datetime.now() - start_time) >= time_limit:
+                return best
+            
+            # 1. Mutation: Select 3 distinct random individuals (a, b, c) != i
+            # We use a quick method to select indices
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a, b, c = population[np.random.choice(candidates, 3, replace=False)]
+            
+            # Create mutant vector: V = a + F * (b - c)
+            mutant = a + mutation_factor * (b - c)
+            
+            # Clip mutant to ensure it stays within bounds
+            mutant = np.clip(mutant, min_b, max_b)
+            
+            # 2. Crossover: Create trial vector
+            # Recombine target (population[i]) and mutant
+            cross_points = np.random.rand(dim) < crossover_prob
+            
+            # Ensure at least one parameter is changed (taken from mutant)
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+                
+            trial = np.where(cross_points, mutant, population[i])
+            
+            # 3. Selection
+            # Evaluate trial vector
+            f_trial = func(trial)
+            
+            # Greedy selection: if trial is better, replace target
+            if f_trial <= fitness[i]:
+                fitness[i] = f_trial
+                population[i] = trial
+                
+                # Update global best found so far
+                if f_trial < best:
+                    best = f_trial
+
+    # return fitness of the best found solution
+    return best
+```";;;a8a079b1-a6c2-4f3d-b84f-58d7b16960a6;{}
+2026-02-12 12:20:46.161728+00:00;0;user;"Generate algorithm.
+";;;326394ae-7e22-40b5-99f8-dc17cc5b3122;{}
+2026-02-12 12:21:42.200548+00:00;5897;model;"```python
+import numpy as np
+import time
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Executes a Differential Evolution algorithm to minimize the given function 
+    within a specified time limit.
+    """"""
+    start_time = time.time()
+    
+    # --- Algorithm Configuration ---
+    # Population size: Heuristic based on dimension, clamped to reasonable limits
+    # to ensure efficiency within time constraints.
+    pop_size = min(max(20, 10 * dim), 100)
+    
+    # Differential Evolution Hyperparameters
+    F = 0.8   # Mutation factor (differential weight)
+    CR = 0.9  # Crossover probability
+
+    # --- Initialization ---
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Initialize population randomly within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Array to store fitness values
+    fitness = np.full(pop_size, float('inf'))
+    best_val = float('inf')
+
+    # Evaluate initial population
+    # We check time during initialization in case calculation is very slow
+    for i in range(pop_size):
+        if (time.time() - start_time) >= max_time:
+            return best_val
+            
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_val:
+            best_val = val
+
+    # --- Main Optimization Loop ---
+    # We use Asynchronous update (updates population immediately) 
+    # allowing for granular time checks.
+    while True:
+        for i in range(pop_size):
+            # Check time constraint
+            if (time.time() - start_time) >= max_time:
+                return best_val
+
+            # 1. Mutation: Select 3 distinct random agents (a, b, c) != i
+            # Using random choice is safer to ensure distinctness
+            candidates = np.random.choice(pop_size, 3, replace=False)
+            while i in candidates:
+                candidates = np.random.choice(pop_size, 3, replace=False)
+            
+            a_idx, b_idx, c_idx = candidates
+            
+            a = population[a_idx]
+            b = population[b_idx]
+            c = population[c_idx]
+
+            # Generate mutant vector: v = a + F * (b - c)
+            mutant = a + F * (b - c)
+
+            # 2. Crossover: Create trial vector
+            # Generate random mask for crossover
+            cross_points = np.random.rand(dim) < CR
+            
+            # Ensure at least one parameter comes from mutant (avoids exact copy of target)
+            if not np.any(cross_points):
+                cross_points[np.random.randint(0, dim)] = True
+            
+            trial = np.where(cross_points, mutant, population[i])
+
+            # 3. Boundary Control: Clip values to stay within bounds
+            trial = np.clip(trial, min_b, max_b)
+
+            # 4. Selection
+            trial_fitness = func(trial)
+
+            # If trial is better, replace the individual in the population
+            if trial_fitness < fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial
+                
+                # Update global best
+                if trial_fitness < best_val:
+                    best_val = trial_fitness
+
+    return best_val
+```";;;19c142c8-b7da-4e7c-b05d-bc1a01a60698;{}
+2026-02-12 12:36:42.431391+00:00;0;user;"Generate algorithm.
+";;;ed2cb360-779c-4086-89f9-62fc8b778d11;{}
+2026-02-12 12:37:35.341936+00:00;5735;model;"Here is the implementation of a Differential Evolution (DE) algorithm. DE is a robust, gradient-free global optimization method well-suited for continuous parameter spaces and works efficiently within fixed time constraints.
+
+```python
+import numpy as np
+import time
+
+def run(func, dim, bounds, max_time):
+    # Capture start time to manage the time budget
+    start_time = time.time()
+    
+    # Define a safety buffer (in seconds) to ensure the function returns before the hard cutoff
+    time_buffer = 0.05 
+    timeout = max_time - time_buffer
+
+    # Differential Evolution Hyperparameters
+    # F: Mutation factor (typically 0.5-1.0). Controls amplification of differential variation.
+    F = 0.8 
+    # CR: Crossover probability (0.0-1.0). Controls diversity.
+    CR = 0.9 
+    
+    # Population size. Standard is 10*dim, but constrained by time we keep it manageable.
+    # We ensure a minimum of 5 to support the mutation logic (requires 3 others + target).
+    pop_size = max(5, int(10 * dim))
+    # Cap population for very high dimensions to ensure we get at least some generations
+    if pop_size > 50:
+        pop_size = 50
+
+    # Parse bounds into numpy arrays for vectorization
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # Initialize Population: Random uniform distribution within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Evaluate initial population
+    fitness = np.full(pop_size, float('inf'))
+    best_val = float('inf')
+    best_vec = None
+
+    # Initial evaluation loop
+    for i in range(pop_size):
+        # Check time constraint
+        if (time.time() - start_time) > timeout:
+            # If time runs out during initialization, return best found so far
+            return best_val if best_val != float('inf') else func(population[0])
+
+        val = func(population[i])
+        fitness[i] = val
+        
+        # Update global best
+        if val < best_val:
+            best_val = val
+            best_vec = population[i]
+
+    # Main Evolutionary Loop
+    while True:
+        for i in range(pop_size):
+            # Check time constraint strictly before expensive operations
+            if (time.time() - start_time) > timeout:
+                return best_val
+
+            # --- Mutation ---
+            # Select 3 distinct random indices distinct from current index i
+            candidates = [idx for idx in range(pop_size) if idx != i]
+            a, b, c = population[np.random.choice(candidates, 3, replace=False)]
+
+            # Generate mutant vector: V = a + F * (b - c)
+            mutant = a + F * (b - c)
+            
+            # Clip mutant vector to stay within bounds
+            mutant = np.clip(mutant, min_b, max_b)
+
+            # --- Crossover ---
+            # Binomial crossover
+            rand_vals = np.random.rand(dim)
+            # Ensure at least one parameter is taken from mutant (fixed j_rand)
+            j_rand = np.random.randint(dim)
+            cross_mask = (rand_vals < CR)
+            cross_mask[j_rand] = True
+            
+            # Trial vector u is mutant where mask is True, else target (population[i])
+            trial = np.where(cross_mask, mutant, population[i])
+
+            # --- Selection ---
+            trial_fitness = func(trial)
+
+            # Greedy selection: if trial is better or equal, replace target
+            if trial_fitness <= fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial
+                
+                # Update global best found so far
+                if trial_fitness < best_val:
+                    best_val = trial_fitness
+                    best_vec = trial
+
+    # return fitness of the best found solution
+    return best_val
+```";;;22656921-3247-4829-be55-350f661c2a4e;{}
+2026-02-12 12:52:34.077802+00:00;0;user;"Generate algorithm.
+";;;ab317cb1-9053-4b81-aa70-bdf20ee3627c;{}
+2026-02-12 12:53:11.087411+00:00;4079;model;"Here is a fully operational, self-contained Python algorithm based on **Differential Evolution (DE)**.
+
+Differential Evolution is a robust, stochastic, derivative-free optimization method that generally outperforms random search and is well-suited for finding global minima in continuous search spaces within a limited time.
+
+```python
+import numpy as np
+from datetime import datetime, timedelta
+
+def run(func, dim, bounds, max_time):
+    """"""
+    Minimizes a function using the Differential Evolution algorithm.
+    """"""
+    start_time = datetime.now()
+    time_limit = timedelta(seconds=max_time)
+    
+    # --- Hyperparameters ---
+    # Population size: adaptive based on dimension, but clamped to ensure speed
+    pop_size = int(np.clip(10 * dim, 20, 100))
+    mutation_factor = 0.8    # F: Weighting factor for mutation (0.5 to 1.0)
+    crossover_prob = 0.7     # CR: Crossover probability (0.0 to 1.0)
+
+    # Convert bounds to numpy array for easier handling
+    bounds_np = np.array(bounds)
+    min_b = bounds_np[:, 0]
+    max_b = bounds_np[:, 1]
+    diff_b = max_b - min_b
+
+    # --- Initialization ---
+    # Initialize population randomly within bounds
+    # Shape: (pop_size, dim)
+    population = min_b + np.random.rand(pop_size, dim) * diff_b
+    
+    # Evaluate initial population
+    fitness = np.array([float('inf')] * pop_size)
+    best_fitness = float('inf')
+    
+    # We perform an initial pass to fill fitness values and find the best so far
+    for i in range(pop_size):
+        # Time check
+        if (datetime.now() - start_time) >= time_limit:
+            return best_fitness
+
+        val = func(population[i])
+        fitness[i] = val
+        
+        if val < best_fitness:
+            best_fitness = val
+
+    # --- Evolution Loop ---
+    while True:
+        # Check time at the start of every generation
+        if (datetime.now() - start_time) >= time_limit:
+            return best_fitness
+            
+        for i in range(pop_size):
+            # 1. Mutation: Select 3 distinct random individuals (r1, r2, r3) != i
+            candidates = list(range(pop_size))
+            candidates.remove(i)
+            r1, r2, r3 = np.random.choice(candidates, 3, replace=False)
+            
+            x_1 = population[r1]
+            x_2 = population[r2]
+            x_3 = population[r3]
+            
+            # Create mutant vector: v = x_1 + F * (x_2 - x_3)
+            mutant_vector = x_1 + mutation_factor * (x_2 - x_3)
+            
+            # 2. Crossover: Create trial vector
+            # Select random index to ensure at least one parameter comes from mutant
+            rand_j = np.random.randint(dim)
+            crossover_mask = np.random.rand(dim) < crossover_prob
+            crossover_mask[rand_j] = True
+            
+            trial_vector = np.where(crossover_mask, mutant_vector, population[i])
+            
+            # 3. Boundary Handling: Clip values to remain within bounds
+            trial_vector = np.clip(trial_vector, min_b, max_b)
+            
+            # 4. Selection: Evaluate trial vector
+            # Time check before expensive function call
+            if (datetime.now() - start_time) >= time_limit:
+                return best_fitness
+
+            trial_fitness = func(trial_vector)
+            
+            # Greedy selection
+            if trial_fitness < fitness[i]:
+                fitness[i] = trial_fitness
+                population[i] = trial_vector
+                
+                # Update global best immediately if found
+                if trial_fitness < best_fitness:
+                    best_fitness = trial_fitness
+
+    return best_fitness
+```";;;c16e68dd-429d-4171-a8be-f91cb7fa25bc;{}

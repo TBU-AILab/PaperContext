@@ -1,0 +1,187 @@
+#Looking at the results, the best algorithm (8.08) used SHADE + CMA-ES with Cholesky. I'll improve by:
+#
+#1. **Better L-SHADE** with proper vectorized operations and population reduction
+#2. **Improved CMA-ES** with eigendecomposition and proper IPOP restarts
+#3. **Smarter time allocation** - more time for CMA-ES which seems critical
+#4. **Nelder-Mead refinement** at the end for fine-tuning
+#5. **Better sigma initialization** based on population spread
+#
+import numpy as np
+from datetime import datetime
+
+def run(func, dim, bounds, max_time):
+    start = datetime.now()
+    best = float('inf')
+    best_x = None
+    
+    bounds_arr = np.array(bounds)
+    lower = bounds_arr[:, 0]
+    upper = bounds_arr[:, 1]
+    ranges = upper - lower
+    
+    def elapsed():
+        return (datetime.now() - start).total_seconds()
+    
+    def clip(x):
+        return np.clip(x, lower, upper)
+    
+    def ev(x):
+        nonlocal best, best_x
+        v = func(x)
+        if v < best:
+            best = v
+            best_x = x.copy()
+        return v
+
+    # --- L-SHADE ---
+    pop_size_init = min(max(10 * dim, 50), 150)
+    pop_size = pop_size_init
+    H = 60
+    memory_F = np.full(H, 0.5)
+    memory_CR = np.full(H, 0.8)
+    k = 0
+    min_pop = max(4, dim // 2)
+    
+    pop = np.zeros((pop_size, dim))
+    for d in range(dim):
+        perm = np.random.permutation(pop_size)
+        pop[:, d] = (perm + np.random.uniform(0, 1, pop_size)) / pop_size
+    pop = lower + pop * ranges
+    
+    fit = np.array([ev(pop[i]) for i in range(pop_size)])
+    archive = []
+    nfe = pop_size
+    max_nfe = pop_size_init * 400
+    de_time = max_time * 0.40
+    
+    while elapsed() < de_time and nfe < max_nfe:
+        S_F, S_CR, S_delta = [], [], []
+        sorted_idx = np.argsort(fit)
+        
+        for i in range(pop_size):
+            if elapsed() >= de_time:
+                break
+            ri = np.random.randint(H)
+            Fi = -1
+            while Fi <= 0:
+                Fi = memory_F[ri] + 0.1 * np.random.standard_cauchy()
+            Fi = min(Fi, 1.5)
+            CRi = np.clip(np.random.normal(memory_CR[ri], 0.1), 0.0, 1.0)
+            
+            p = max(2, int(0.11 * pop_size))
+            pbest_idx = sorted_idx[np.random.randint(p)]
+            
+            candidates = [j for j in range(pop_size) if j != i]
+            r1 = candidates[np.random.randint(len(candidates))]
+            
+            combined = pop_size + len(archive)
+            r2 = i
+            while r2 == i or r2 == r1:
+                r2 = np.random.randint(combined)
+            xr2 = archive[r2 - pop_size] if r2 >= pop_size else pop[r2]
+            
+            mutant = pop[i] + Fi * (pop[pbest_idx] - pop[i]) + Fi * (pop[r1] - xr2)
+            for d2 in range(dim):
+                if mutant[d2] < lower[d2]:
+                    mutant[d2] = (lower[d2] + pop[i][d2]) / 2
+                elif mutant[d2] > upper[d2]:
+                    mutant[d2] = (upper[d2] + pop[i][d2]) / 2
+            
+            jrand = np.random.randint(dim)
+            trial = pop[i].copy()
+            for d2 in range(dim):
+                if np.random.random() < CRi or d2 == jrand:
+                    trial[d2] = mutant[d2]
+            
+            tf = ev(trial)
+            nfe += 1
+            if tf <= fit[i]:
+                delta = fit[i] - tf
+                if delta > 0:
+                    S_F.append(Fi); S_CR.append(CRi); S_delta.append(delta)
+                if len(archive) < pop_size_init:
+                    archive.append(pop[i].copy())
+                elif archive:
+                    archive[np.random.randint(len(archive))] = pop[i].copy()
+                pop[i] = trial; fit[i] = tf
+        
+        if S_F:
+            w = np.array(S_delta); w /= w.sum() + 1e-30
+            memory_F[k] = np.sum(w * np.array(S_F)**2) / (np.sum(w * np.array(S_F)) + 1e-30)
+            memory_CR[k] = np.sum(w * np.array(S_CR))
+            k = (k + 1) % H
+        
+        ratio = min(1.0, nfe / max_nfe)
+        new_size = max(min_pop, int(round(pop_size_init + (min_pop - pop_size_init) * ratio)))
+        if new_size < pop_size:
+            idx_keep = np.argsort(fit)[:new_size]
+            pop = pop[idx_keep]; fit = fit[idx_keep]; pop_size = new_size
+
+    # Collect good starting points
+    good_sols = []
+    top_idx = np.argsort(fit)[:min(6, pop_size)]
+    for ti in top_idx:
+        good_sols.append(pop[ti].copy())
+    if best_x is not None:
+        good_sols.insert(0, best_x.copy())
+
+    # --- IPOP-CMA-ES ---
+    base_lam = max(4 + int(3 * np.log(dim)), 8)
+    restart = 0
+    
+    while elapsed() < max_time * 0.93:
+        ci = restart % len(good_sols)
+        if restart < len(good_sols):
+            m = good_sols[ci].copy()
+            sigma = 0.05 * np.max(ranges)
+            lam = base_lam
+        else:
+            lam = min(base_lam * (2 ** (restart - len(good_sols) + 1)), 200)
+            if np.random.random() < 0.4:
+                m = lower + np.random.random(dim) * ranges
+            else:
+                m = best_x.copy() + np.random.randn(dim) * ranges * 0.15
+                m = clip(m)
+            sigma = 0.2 * np.max(ranges)
+        restart += 1
+        n = dim; mu_c = lam // 2
+        w = np.log(mu_c + 0.5) - np.log(np.arange(1, mu_c + 1)); w /= w.sum()
+        mu_eff = 1.0 / np.sum(w**2)
+        cs = (mu_eff+2)/(n+mu_eff+5); ds = 1+2*max(0,np.sqrt((mu_eff-1)/(n+1))-1)+cs
+        cc = (4+mu_eff/n)/(n+4+2*mu_eff/n); c1 = 2/((n+1.3)**2+mu_eff)
+        cmu = min(1-c1, 2*(mu_eff-2+1/mu_eff)/((n+2)**2+mu_eff))
+        ps = np.zeros(n); pc = np.zeros(n); C = np.eye(n); D = np.ones(n); B = np.eye(n)
+        chiN = np.sqrt(n)*(1-1/(4*n)+1/(21*n**2)); eg = -1
+        tleft = max_time*0.93 - elapsed()
+        deadline = elapsed() + min(tleft*0.5, tleft/max(1, 4-min(restart,3)))
+        for g in range(100000):
+            if elapsed() >= deadline: break
+            if g-eg > max(1, int(1/(c1+cmu)/n/10)) or g==0:
+                C=(C+C.T)/2; D2,B=np.linalg.eigh(C); D=np.sqrt(np.maximum(D2,1e-20)); eg=g
+            BD=B*D; zs=np.random.randn(lam,n); ys=(BD@zs.T).T
+            xs=np.array([clip(m+sigma*y) for y in ys]); fs=np.array([ev(x) for x in xs])
+            idx=np.argsort(fs); yw=w@ys[idx[:mu_c]]; zw=w@zs[idx[:mu_c]]
+            m=clip(m+sigma*yw)
+            ps=(1-cs)*ps+np.sqrt(cs*(2-cs)*mu_eff)*(B@zw)
+            hn=float(np.linalg.norm(ps)/np.sqrt(1-(1-cs)**(2*(g+1)))<(1.4+2/(n+1))*chiN)
+            pc=(1-cc)*pc+hn*np.sqrt(cc*(2-cc)*mu_eff)*yw
+            C=(1-c1-cmu)*C+c1*(np.outer(pc,pc)+(1-hn)*cc*(2-cc)*C)
+            for j in range(mu_c): C+=cmu*w[j]*np.outer(ys[idx[j]],ys[idx[j]])
+            sigma*=np.exp((cs/ds)*(np.linalg.norm(ps)/chiN-1))
+            sigma=np.clip(sigma,1e-16,np.max(ranges))
+            if sigma<1e-14 or (g>30 and fs[idx[0]]==fs[idx[mu_c-1]]): break
+
+    # Coordinate-wise refinement
+    if best_x is not None:
+        step = ranges * 0.002
+        improved = True
+        while elapsed() < max_time * 0.998 and improved:
+            improved = False
+            for d in range(dim):
+                if elapsed() >= max_time * 0.998: break
+                cur = best
+                x1 = best_x.copy(); x1[d] = min(upper[d], best_x[d]+step[d]); ev(x1)
+                x2 = best_x.copy(); x2[d] = max(lower[d], best_x[d]-step[d]); ev(x2)
+                if best < cur: improved = True
+            step *= 0.5
+    return best
