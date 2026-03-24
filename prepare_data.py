@@ -28,7 +28,7 @@ ATTRIBUTE_COLS = [
     "best_min",
 ]
 
-SORT_COLS = ["Mean", "Min", "Max", "Median", "STD", "Mean_rescaled", "Min_rescaled"]
+SORT_COLS = ["Mean", "Min", "Max", "Median", "STD", "Mean_rescaled", "Min_rescaled", "metaheuristic_family", "context", "llm_family"]
 TEXT_COLS = ["task_id", "solution_dir", "py_file", "short_rationale", "metaheuristic_family", "llm_family", "context"]
 
 

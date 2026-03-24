@@ -149,6 +149,52 @@
       vertical-align: middle;
       margin-right: 5px;
     }
+    .legend-panel {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 80px;
+    }
+    .legend-panel-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .legend-panel-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .legend-panel-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 5px 0;
+      font-size: 13px;
+    }
+    .legend-panel-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(255,255,255,0.25);
+      flex: 0 0 12px;
+    }
+    .legend-panel-empty {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .sticky-legend-wrap {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      margin-top: 12px;
+      padding-top: 8px;
+      background: linear-gradient(to bottom, rgba(15,23,42,0), rgba(15,23,42,0.92) 18px, rgba(15,23,42,1) 36px);
+    }
+    .sticky-legend-wrap .small-note {
+      margin-bottom: 6px;
+    }
     #plot {
       width: 100%;
       height: calc(100vh - 140px);
@@ -224,6 +270,12 @@
       </div>
       <div class="plot-wrap">
         <div id="plot"></div>
+        <div class="sticky-legend-wrap">
+          <div class="small-note">Heatmap legend</div>
+          <div id="attributeLegendPanel" class="legend-panel">
+            <div class="small-note">Legend will appear here after the heatmap is rendered.</div>
+          </div>
+        </div>
       </div>
       <div class="footer">
         Static Plotly app suitable for GitHub Pages. Data is loaded from <code>plotly_task_feature_map/dataiter.json</code>.
@@ -273,14 +325,23 @@
     titleSummary: document.getElementById('titleSummary'),
     resetBtn: document.getElementById('resetBtn'),
     selectAllVisibleBtn: document.getElementById('selectAllVisibleBtn'),
-    clearVisibleBtn: document.getElementById('clearVisibleBtn')
+    clearVisibleBtn: document.getElementById('clearVisibleBtn'),
+    attributeLegendPanel: document.getElementById('attributeLegendPanel')
   };
 
-  sortColumns.forEach(col => {
+  let currentFamilyColorMap = {};
+
+  const heatmapSortOptions = [
+    { value: '__task_id__', label: 'task_id' },
+    { value: '__iter0_family__', label: 'iteration 0 metaheuristic_family' },
+    ...sortColumns.map(col => ({ value: col, label: col }))
+  ];
+
+  heatmapSortOptions.forEach(({ value, label }) => {
     const opt = document.createElement('option');
-    opt.value = col;
-    opt.textContent = col;
-    if (col === state.sortBy) opt.selected = true;
+    opt.value = value;
+    opt.textContent = label;
+    if (value === state.sortBy) opt.selected = true;
     els.sortBy.appendChild(opt);
   });
   els.sortDirection.value = state.sortDirection;
@@ -288,6 +349,22 @@
   function valueKey(v) {
     if (v === null || v === undefined) return '__NULL__';
     return typeof v + ':' + String(v);
+  }
+
+  function decodeValueKey(key) {
+    if (key === '__NULL__') return 'Missing';
+    const idx = String(key).indexOf(':');
+    if (idx === -1) return key;
+    return key.slice(idx + 1);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function displayValue(v) {
@@ -449,109 +526,84 @@
 }
 
 function buildHeatmap(filteredRecords) {
-  const xVals = [...new Set(filteredRecords.map(r => r.actual_iteration))].sort();
+  const colorMaps = buildColorMaps(filteredRecords);
+  const familyCfg = colorMaps.metaheuristic_family || { type: 'categorical', map: {} };
+  currentFamilyColorMap = familyCfg.map || {};
+
+  const xVals = [...new Set(filteredRecords.map(r => r.actual_iteration))].sort((a, b) => Number(a) - Number(b));
   const yVals = [...new Set(filteredRecords.map(r => r.task_id))];
 
-  // unique families
-  const families = [...new Set(filteredRecords.map(r => r.metaheuristic_family))];
-
-  // stable color palette
-  const palette = [
-    "#60a5fa","#f59e0b","#a78bfa","#34d399","#f472b6",
-    "#f87171","#2dd4bf","#fbbf24","#c084fc","#fb7185"
-  ];
-
+  const familyEntries = Object.entries(currentFamilyColorMap);
+  const families = familyEntries.map(([key]) => decodeValueKey(key));
   const familyToColor = Object.fromEntries(
-    families.map((f, i) => [f, palette[i % palette.length]])
+    familyEntries.map(([key, color]) => [decodeValueKey(key), color])
   );
-
   const familyToIndex = Object.fromEntries(
     families.map((f, i) => [f, i])
   );
 
-  // build Z matrix
   const z = yVals.map(task =>
     xVals.map(iter => {
-      const recs = filteredRecords.filter(r =>
-        r.task_id === task && r.actual_iteration === iter
-      );
-
+      const recs = filteredRecords.filter(r => r.task_id === task && Number(r.actual_iteration) === Number(iter));
       if (recs.length === 0) return null;
-
-      // best solution per (task, iteration)
-      const best = recs.sort((a, b) => a.Mean - b.Mean)[0];
-      return familyToIndex[best.metaheuristic_family];
+      const best = recs.slice().sort((a, b) => {
+        const am = a.Mean == null || Number.isNaN(a.Mean) ? Number.POSITIVE_INFINITY : Number(a.Mean);
+        const bm = b.Mean == null || Number.isNaN(b.Mean) ? Number.POSITIVE_INFINITY : Number(b.Mean);
+        return am - bm;
+      })[0];
+      const family = best?.metaheuristic_family ?? null;
+      return family == null ? null : familyToIndex[family];
     })
   );
 
-  // discrete colorscale
-  const colorscale = families.flatMap((f, i) => {
-    const t = families.length <= 1 ? 0 : i / (families.length - 1);
-    return [
-      [t, familyToColor[f]],
-      [t, familyToColor[f]]
-    ];
-  });
+  const colorscale = [];
+  const maxIndex = Math.max(1, families.length - 1);
+  if (families.length === 0) {
+    colorscale.push([0, MISSING], [1, MISSING]);
+  } else {
+    families.forEach((family, i) => {
+      const t = maxIndex === 0 ? 0 : i / maxIndex;
+      const color = familyToColor[family] || MISSING;
+      colorscale.push([t, color], [t, color]);
+    });
+  }
 
-  // legend (fake traces)
-  const legendTraces = families.map(f => ({
-    type: "scatter",
-    mode: "markers",
-    x: [null],
-    y: [null],
-    marker: {
-      size: 10,
-      color: familyToColor[f]
-    },
-    name: f,
-    showlegend: true,
-    hoverinfo: "skip"
-  }));
+  const yTitle = state.sortBy === '__task_id__'
+    ? 'task_id'
+    : state.sortBy === '__iter0_family__'
+      ? `task_id sorted by iteration 0 metaheuristic_family (${state.sortDirection})`
+      : `task_id sorted by ${state.sortBy} (${state.sortDirection})`;
 
   return {
-    data: [
-      {
-        type: "heatmap",
-        x: xVals,
-        y: yVals,
-        z: z,
-        colorscale: colorscale,
-        showscale: false, // remove colorbar
-        hovertemplate:
-          "task: %{y}<br>" +
-          "iteration: %{x}<extra></extra>"
-      },
-      ...legendTraces
-    ],
-
+    data: [{
+      type: 'heatmap',
+      x: xVals,
+      y: yVals,
+      z,
+      colorscale,
+      showscale: false,
+      xgap: 0,
+      ygap: 0,
+      hovertemplate: 'task: %{y}<br>iteration: %{x}<extra></extra>'
+    }],
     layout: {
-      title: "Metaheuristic Family Map",
-
-      // 🔥 true black theme
-      paper_bgcolor: "#000000",
-      plot_bgcolor: "#000000",
-      font: { color: "#e5e7eb" },
-
+      title: 'Metaheuristic Family Map',
+      paper_bgcolor: '#0f172a',
+      plot_bgcolor: '#0f172a',
+      font: { color: '#e5e7eb' },
       xaxis: {
-        title: "actual_iteration",
-        gridcolor: "#222",
-        zerolinecolor: "#222"
+        title: 'actual_iteration',
+        gridcolor: '#334155',
+        zerolinecolor: '#334155'
       },
-
       yaxis: {
-        title: "task_id",
+        title: yTitle,
         automargin: true,
         showticklabels: false
       },
-
-      legend: {
-        orientation: "h",
-        y: -0.2,
-        x: 0,
-        bgcolor: "rgba(0,0,0,0)"
-      },
-
-      margin: { l: 120, r: 20, t: 50, b: 100 }
+      margin: { l: 120, r: 20, t: 50, b: 100 },
+      hoverlabel: { align: 'left' },
+      dragmode: 'pan'
     }
   };
 }
@@ -653,6 +705,43 @@ function buildHeatmap(filteredRecords) {
   function sortRecords(arr) {
     const col = state.sortBy;
     const dir = state.sortDirection === 'asc' ? 1 : -1;
+
+    if (col === '__task_id__') {
+      return [...arr].sort((a, b) => String(a.task_id).localeCompare(String(b.task_id), undefined, { numeric: true, sensitivity: 'base' }) * dir);
+    }
+
+    if (col === '__iter0_family__') {
+      const familyByTask = new Map();
+      const tasks = [...new Set(arr.map(r => r.task_id))];
+
+      tasks.forEach(taskId => {
+        const iter0 = arr
+          .filter(r => r.task_id === taskId && Number(r.actual_iteration) === 0)
+          .slice()
+          .sort((a, b) => {
+            const am = a.Mean == null || Number.isNaN(a.Mean) ? Number.POSITIVE_INFINITY : Number(a.Mean);
+            const bm = b.Mean == null || Number.isNaN(b.Mean) ? Number.POSITIVE_INFINITY : Number(b.Mean);
+            return am - bm;
+          });
+        familyByTask.set(taskId, iter0[0]?.metaheuristic_family ?? null);
+      });
+
+      return [...arr].sort((a, b) => {
+        const af = familyByTask.get(a.task_id);
+        const bf = familyByTask.get(b.task_id);
+        const aMissing = af === null || af === undefined || af === '';
+        const bMissing = bf === null || bf === undefined || bf === '';
+        if (aMissing && bMissing) {
+          return String(a.task_id).localeCompare(String(b.task_id), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+        }
+        if (aMissing) return 1;
+        if (bMissing) return -1;
+        const cmp = String(af).localeCompare(String(bf), undefined, { numeric: true, sensitivity: 'base' });
+        if (cmp !== 0) return cmp * dir;
+        return String(a.task_id).localeCompare(String(b.task_id), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+      });
+    }
+
     return [...arr].sort((a, b) => {
       const av = a[col];
       const bv = b[col];
@@ -663,7 +752,7 @@ function buildHeatmap(filteredRecords) {
       if (bMissing) return -1;
       if (av < bv) return -1 * dir;
       if (av > bv) return 1 * dir;
-      return String(a.task_id).localeCompare(String(b.task_id));
+      return String(a.task_id).localeCompare(String(b.task_id), undefined, { numeric: true, sensitivity: 'base' });
     });
   }
 
@@ -671,13 +760,16 @@ function buildHeatmap(filteredRecords) {
     const colorMaps = {};
     attributeColumns.forEach(attr => {
       const vals = [...new Set(filtered.map(r => r[attr]).filter(v => v !== null && v !== undefined))];
-      if (vals.every(v => typeof v === 'boolean')) {
-        colorMaps[attr] = {type: 'boolean'};
+      if (vals.length > 0 && vals.every(v => typeof v === 'boolean')) {
+        colorMaps[attr] = { type: 'boolean' };
       } else {
-        const sorted = vals.sort((a, b) => String(a).localeCompare(String(b)));
+        const sorted = vals.sort((a, b) => {
+          if (typeof a === 'number' && typeof b === 'number') return a - b;
+          return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+        });
         const map = {};
         sorted.forEach((v, i) => { map[valueKey(v)] = PALETTE[i % PALETTE.length]; });
-        colorMaps[attr] = {type: 'categorical', map};
+        colorMaps[attr] = { type: 'categorical', map };
       }
     });
     return colorMaps;
@@ -689,6 +781,31 @@ function buildHeatmap(filteredRecords) {
     if (!cfg) return MISSING;
     if (cfg.type === 'boolean') return value ? BOOL_TRUE : BOOL_FALSE;
     return cfg.map[valueKey(value)] || MISSING;
+  }
+
+  function heatmapLegendHtml(familyColorMap) {
+    const entries = Object.entries(familyColorMap || {});
+    if (!entries.length) {
+      return '<div class="legend-panel-empty">No mapped values in current selection.</div>';
+    }
+
+    const rows = entries.map(([key, color]) => `
+      <div class="legend-panel-row">
+        <span class="legend-panel-swatch" style="background:${color}"></span>
+        <span>${escapeHtml(displayValue(decodeValueKey(key)))}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="legend-panel-title">metaheuristic_family</div>
+      <div class="legend-panel-subtitle">Distinct values in current filtered view</div>
+      ${rows}
+    `;
+  }
+
+  function updateHeatmapLegendPanel() {
+    if (!els.attributeLegendPanel) return;
+    els.attributeLegendPanel.innerHTML = heatmapLegendHtml(currentFamilyColorMap);
   }
 
   function buildPlotData(sortedRecords, visibleAttrs) {
@@ -864,21 +981,9 @@ function buildHeatmap(filteredRecords) {
   }
 
   // ---------------------------
-  // 3. (OPTIONAL) SORT TASKS
+  // 3. SORT TASKS
   // ---------------------------
-  if (state.sortBy) {
-    const dir = state.sortDirection === "asc" ? 1 : -1;
-
-    filtered = filtered.slice().sort((a, b) => {
-      const av = a[state.sortBy];
-      const bv = b[state.sortBy];
-
-      if (av == null) return 1;
-      if (bv == null) return -1;
-
-      return (av - bv) * dir;
-    });
-  }
+  filtered = sortRecords(filtered);
 
   // ---------------------------
   // 4. BUILD HEATMAP
@@ -891,6 +996,7 @@ function buildHeatmap(filteredRecords) {
   Plotly.react(els.plot, fig.data, fig.layout, {
     responsive: true
   });
+  updateHeatmapLegendPanel();
 
   // ---------------------------
   // 6. UPDATE STATS (sidebar)
