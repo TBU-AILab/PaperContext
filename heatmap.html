@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Feature Map</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --border: #374151;
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Arial, sans-serif; }
+    .app {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .content {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-width: 0;
+    }
+    .topbar {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(4px);
+    }
+    .plot-wrap {
+      padding: 10px;
+      min-height: 0;
+    }
+    .footer {
+      padding: 10px 18px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--panel);
+    }
+    h1 { margin: 0 0 8px 0; font-size: 22px; }
+    h2 { margin: 20px 0 8px 0; font-size: 15px; }
+    .section {
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .help { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--muted); }
+    input[type="text"], select {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      margin-bottom: 10px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    button {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    .checkbox-list, .choice-list {
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-2);
+    }
+    .checkbox-item, .choice-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 2px;
+      font-size: 13px;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      min-width: 105px;
+    }
+    .stat .k { display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+    .stat .v { font-weight: bold; font-size: 15px; }
+    .legend {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .legend-box {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    #plot {
+      width: 100%;
+      height: calc(100vh - 140px);
+      min-height: 600px;
+      background: var(--bg);
+      border-radius: 12px;
+    }
+    .small-note { font-size: 12px; color: var(--muted); }
+    .inline-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .inline-controls > div { flex: 1 1 150px; min-width: 120px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>Task Feature Map</h1>
+      <div class="help section">
+        Interactive Plotly feature matrix. X-axis = selected attributes. Y-axis = tasks sorted by one metric. Each square is one task-feature cell.
+      </div>
+
+      <div class="section">
+        <h2>Search and sorting</h2>
+        <label for="textSearch">Text search</label>
+        <input id="textSearch" type="text" placeholder="Search task_id, family, context, rationale..." />
+
+        <div class="grid-2">
+          <div>
+            <label for="sortBy">Sort by</label>
+            <select id="sortBy"></select>
+          </div>
+          <div>
+            <label for="sortDirection">Direction</label>
+            <select id="sortDirection">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="resetBtn" type="button">Reset all</button>
+          <button id="selectAllVisibleBtn" type="button">Show all attributes</button>
+          <button id="clearVisibleBtn" type="button">Hide all attributes</button>
+        </div>
+
+        <div id="stats" class="stats"></div>
+      </div>
+
+      <div class="section">
+        <h2>Visible attributes on X-axis</h2>
+        <div id="visibleAttributes" class="checkbox-list"></div>
+      </div>
+
+      <div class="section">
+        <h2>Filters</h2>
+        <div id="filtersContainer"></div>
+      </div>
+
+      <div class="legend">
+        <div><span class="legend-box" style="background:#22c55e"></span>Boolean True</div>
+        <div><span class="legend-box" style="background:#ef4444"></span>Boolean False</div>
+        <div><span class="legend-box" style="background:#6b7280"></span>Missing value</div>
+        <div style="margin-top:8px;">Categorical and numeric values get distinct colors per attribute.</div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div class="inline-controls">
+          <div><strong id="titleSummary">Loading...</strong></div>
+        </div>
+        <div class="small-note">Click a square to inspect the task. Double-click the plot to reset zoom.</div>
+      </div>
+      <div class="plot-wrap">
+        <div id="plot"></div>
+      </div>
+      <div class="footer">
+        Static Plotly app suitable for GitHub Pages. Data is loaded from <code>plotly_task_feature_map/dataiter.json</code>.
+      </div>
+    </main>
+  </div>
+
+<script>
+(async function () {
+  const response = await fetch('./plotly_task_feature_map/dataiter.json');
+  const payload = await response.json();
+  const records = payload.records;
+  const metadata = payload.metadata;
+
+  const BOOL_TRUE = '#22c55e';
+  const BOOL_FALSE = '#ef4444';
+  const MISSING = '#6b7280';
+  const PALETTE = [
+    '#60a5fa','#f59e0b','#a78bfa','#34d399','#f472b6','#f87171',
+    '#2dd4bf','#fbbf24','#c084fc','#fb7185','#38bdf8','#4ade80',
+    '#818cf8','#e879f9','#f97316','#14b8a6','#eab308','#22d3ee'
+  ];
+
+  const attributeColumns = metadata.attribute_columns;
+  const sortColumns = metadata.sort_columns;
+  const filterableColumns = metadata.attribute_columns;
+  const state = {
+    searchText: '',
+    sortBy: metadata.default_sort_column,
+    sortDirection: metadata.default_sort_direction,
+    visibleAttributes: new Set(metadata.default_visible_attributes),
+    filters: {}
+  };
+
+  for (const col of filterableColumns) {
+    state.filters[col] = new Set(metadata.attribute_values[col].map(v => valueKey(v)));
+  }
+
+  const els = {
+    plot: document.getElementById('plot'),
+    visibleAttributes: document.getElementById('visibleAttributes'),
+    filtersContainer: document.getElementById('filtersContainer'),
+    sortBy: document.getElementById('sortBy'),
+    sortDirection: document.getElementById('sortDirection'),
+    textSearch: document.getElementById('textSearch'),
+    stats: document.getElementById('stats'),
+    titleSummary: document.getElementById('titleSummary'),
+    resetBtn: document.getElementById('resetBtn'),
+    selectAllVisibleBtn: document.getElementById('selectAllVisibleBtn'),
+    clearVisibleBtn: document.getElementById('clearVisibleBtn')
+  };
+
+  sortColumns.forEach(col => {
+    const opt = document.createElement('option');
+    opt.value = col;
+    opt.textContent = col;
+    if (col === state.sortBy) opt.selected = true;
+    els.sortBy.appendChild(opt);
+  });
+  els.sortDirection.value = state.sortDirection;
+
+  function valueKey(v) {
+    if (v === null || v === undefined) return '__NULL__';
+    return typeof v + ':' + String(v);
+  }
+
+  function displayValue(v) {
+    if (v === null || v === undefined) return 'Missing';
+    if (typeof v === 'boolean') return v ? 'True' : 'False';
+    return String(v);
+  }
+
+  function formatMetric(v) {
+    return v === null || v === undefined || Number.isNaN(v) ? 'NA' : Number(v).toFixed(4);
+  }
+
+  function attributeLegendText(attr) {
+  const map = {
+    actual_iteration: [
+      '<b>actual_iteration</b>',
+      'Color meaning:',
+      '• different colors = different iteration values',
+      '• same color = same iteration'
+    ].join('<br>'),
+
+    metaheuristic: [
+      '<b>metaheuristic</b>',
+      'Color meaning:',
+      '• each color = one metaheuristic',
+      '• same color = same metaheuristic'
+    ].join('<br>'),
+
+    metaheuristic_family: [
+      '<b>metaheuristic_family</b>',
+      'Color meaning:',
+      '• each color = one family',
+      '• same color = same family'
+    ].join('<br>'),
+
+    local_search: [
+      '<b>local_search</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    adaptation: [
+      '<b>adaptation</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    initialization: [
+      '<b>initialization</b>',
+      'Color meaning:',
+      '• each color = one initialization type',
+      '• same color = same initialization'
+    ].join('<br>'),
+
+    restart: [
+      '<b>restart</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    surrogate: [
+      '<b>surrogate</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    elitism: [
+      '<b>elitism</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    archive: [
+      '<b>archive</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    niching_or_diversity: [
+      '<b>niching_or_diversity</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    hybridized: [
+      '<b>hybridized</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    population_based: [
+      '<b>population_based</b>',
+      'Color meaning:',
+      '• green = yes / enabled',
+      '• red = no / disabled',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    stochastic: [
+      '<b>stochastic</b>',
+      'Color meaning:',
+      '• green = yes / stochastic',
+      '• red = no / deterministic',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    llm_family: [
+      '<b>llm_family</b>',
+      'Color meaning:',
+      '• each color = one LLM family',
+      '• same color = same LLM family'
+    ].join('<br>'),
+
+    context: [
+      '<b>context</b>',
+      'Color meaning:',
+      '• each color = one context type',
+      '• same color = same context'
+    ].join('<br>'),
+
+    best_mean: [
+      '<b>best_mean</b>',
+      'Color meaning:',
+      '• green = best Mean within task',
+      '• red = not best',
+      '• gray = missing / unknown'
+    ].join('<br>'),
+
+    best_min: [
+      '<b>best_min</b>',
+      'Color meaning:',
+      '• green = best Min within task',
+      '• red = not best',
+      '• gray = missing / unknown'
+    ].join('<br>')
+  };
+
+  return map[attr] || [
+    `<b>${attr}</b>`,
+    'Color meaning:',
+    '• colors distinguish different values for this attribute'
+  ].join('<br>');
+}
+
+function buildHeatmap(filteredRecords) {
+  const xVals = [...new Set(filteredRecords.map(r => r.actual_iteration))].sort();
+  const yVals = [...new Set(filteredRecords.map(r => r.task_id))];
+
+  // unique families
+  const families = [...new Set(filteredRecords.map(r => r.metaheuristic_family))];
+
+  // stable color palette
+  const palette = [
+    "#60a5fa","#f59e0b","#a78bfa","#34d399","#f472b6",
+    "#f87171","#2dd4bf","#fbbf24","#c084fc","#fb7185"
+  ];
+
+  const familyToColor = Object.fromEntries(
+    families.map((f, i) => [f, palette[i % palette.length]])
+  );
+
+  const familyToIndex = Object.fromEntries(
+    families.map((f, i) => [f, i])
+  );
+
+  // build Z matrix
+  const z = yVals.map(task =>
+    xVals.map(iter => {
+      const recs = filteredRecords.filter(r =>
+        r.task_id === task && r.actual_iteration === iter
+      );
+
+      if (recs.length === 0) return null;
+
+      // best solution per (task, iteration)
+      const best = recs.sort((a, b) => a.Mean - b.Mean)[0];
+      return familyToIndex[best.metaheuristic_family];
+    })
+  );
+
+  // discrete colorscale
+  const colorscale = families.flatMap((f, i) => {
+    const t = families.length <= 1 ? 0 : i / (families.length - 1);
+    return [
+      [t, familyToColor[f]],
+      [t, familyToColor[f]]
+    ];
+  });
+
+  // legend (fake traces)
+  const legendTraces = families.map(f => ({
+    type: "scatter",
+    mode: "markers",
+    x: [null],
+    y: [null],
+    marker: {
+      size: 10,
+      color: familyToColor[f]
+    },
+    name: f,
+    showlegend: true,
+    hoverinfo: "skip"
+  }));
+
+  return {
+    data: [
+      {
+        type: "heatmap",
+        x: xVals,
+        y: yVals,
+        z: z,
+        colorscale: colorscale,
+        showscale: false, // remove colorbar
+        hovertemplate:
+          "task: %{y}<br>" +
+          "iteration: %{x}<extra></extra>"
+      },
+      ...legendTraces
+    ],
+
+    layout: {
+      title: "Metaheuristic Family Map",
+
+      // 🔥 true black theme
+      paper_bgcolor: "#000000",
+      plot_bgcolor: "#000000",
+      font: { color: "#e5e7eb" },
+
+      xaxis: {
+        title: "actual_iteration",
+        gridcolor: "#222",
+        zerolinecolor: "#222"
+      },
+
+      yaxis: {
+        title: "task_id",
+        automargin: true,
+        showticklabels: false
+      },
+
+      legend: {
+        orientation: "h",
+        y: -0.2,
+        x: 0,
+        bgcolor: "rgba(0,0,0,0)"
+      },
+
+      margin: { l: 120, r: 20, t: 50, b: 100 }
+    }
+  };
+}
+
+  function buildVisibleAttributesUI() {
+    els.visibleAttributes.innerHTML = '';
+    attributeColumns.forEach(col => {
+      const row = document.createElement('label');
+      row.className = 'checkbox-item';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = state.visibleAttributes.has(col);
+      input.addEventListener('change', () => {
+        if (input.checked) state.visibleAttributes.add(col);
+        else state.visibleAttributes.delete(col);
+        render();
+      });
+      row.appendChild(input);
+      row.appendChild(document.createTextNode(col));
+      els.visibleAttributes.appendChild(row);
+    });
+  }
+
+  function buildFiltersUI() {
+    els.filtersContainer.innerHTML = '';
+    filterableColumns.forEach(col => {
+      const section = document.createElement('div');
+      section.style.marginBottom = '14px';
+
+      const title = document.createElement('label');
+      title.textContent = col;
+      section.appendChild(title);
+
+      const list = document.createElement('div');
+      list.className = 'choice-list';
+
+      const values = metadata.attribute_values[col];
+      values.forEach(v => {
+        const key = valueKey(v);
+        const row = document.createElement('label');
+        row.className = 'choice-item';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = state.filters[col].has(key);
+        input.addEventListener('change', () => {
+          if (input.checked) state.filters[col].add(key);
+          else state.filters[col].delete(key);
+          render();
+        });
+        row.appendChild(input);
+        row.appendChild(document.createTextNode(displayValue(v)));
+        list.appendChild(row);
+      });
+
+      const btnRow = document.createElement('div');
+      btnRow.className = 'btn-row';
+
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.textContent = 'All';
+      allBtn.addEventListener('click', () => {
+        state.filters[col] = new Set(values.map(v => valueKey(v)));
+        buildFiltersUI();
+        render();
+      });
+
+      const noneBtn = document.createElement('button');
+      noneBtn.type = 'button';
+      noneBtn.textContent = 'None';
+      noneBtn.addEventListener('click', () => {
+        state.filters[col] = new Set();
+        buildFiltersUI();
+        render();
+      });
+
+      btnRow.appendChild(allBtn);
+      btnRow.appendChild(noneBtn);
+
+      section.appendChild(list);
+      section.appendChild(btnRow);
+      els.filtersContainer.appendChild(section);
+    });
+  }
+
+  function matchesFilters(record) {
+    if (state.searchText) {
+      if (!record._search || !record._search.includes(state.searchText)) return false;
+    }
+
+    for (const col of filterableColumns) {
+      const allowed = state.filters[col];
+      if (!allowed || allowed.size === 0) return false;
+      const key = valueKey(record[col]);
+      if (!allowed.has(key)) return false;
+    }
+    return true;
+  }
+
+  function sortRecords(arr) {
+    const col = state.sortBy;
+    const dir = state.sortDirection === 'asc' ? 1 : -1;
+    return [...arr].sort((a, b) => {
+      const av = a[col];
+      const bv = b[col];
+      const aMissing = av === null || av === undefined || Number.isNaN(av);
+      const bMissing = bv === null || bv === undefined || Number.isNaN(bv);
+      if (aMissing && bMissing) return 0;
+      if (aMissing) return 1;
+      if (bMissing) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return String(a.task_id).localeCompare(String(b.task_id));
+    });
+  }
+
+  function buildColorMaps(filtered) {
+    const colorMaps = {};
+    attributeColumns.forEach(attr => {
+      const vals = [...new Set(filtered.map(r => r[attr]).filter(v => v !== null && v !== undefined))];
+      if (vals.every(v => typeof v === 'boolean')) {
+        colorMaps[attr] = {type: 'boolean'};
+      } else {
+        const sorted = vals.sort((a, b) => String(a).localeCompare(String(b)));
+        const map = {};
+        sorted.forEach((v, i) => { map[valueKey(v)] = PALETTE[i % PALETTE.length]; });
+        colorMaps[attr] = {type: 'categorical', map};
+      }
+    });
+    return colorMaps;
+  }
+
+  function colorForValue(attr, value, colorMaps) {
+    if (value === null || value === undefined) return MISSING;
+    const cfg = colorMaps[attr];
+    if (!cfg) return MISSING;
+    if (cfg.type === 'boolean') return value ? BOOL_TRUE : BOOL_FALSE;
+    return cfg.map[valueKey(value)] || MISSING;
+  }
+
+  function buildPlotData(sortedRecords, visibleAttrs) {
+  const colorMaps = buildColorMaps(sortedRecords);
+
+  const z = [];
+  const text = [];
+  const customdata = [];
+
+  const cellCodeMap = new Map();
+  const cellColorMap = new Map();
+  let nextCode = 0;
+
+  function getCode(color) {
+    if (!cellCodeMap.has(color)) {
+      cellCodeMap.set(color, nextCode++);
+      cellColorMap.set(cellCodeMap.get(color), color);
+    }
+    return cellCodeMap.get(color);
+  }
+
+  sortedRecords.forEach((record) => {
+    const zRow = [];
+    const textRow = [];
+    const customRow = [];
+
+    visibleAttrs.forEach(attr => {
+      const v = record[attr];
+      const color = colorForValue(attr, v, colorMaps);
+      const code = getCode(color);
+
+      zRow.push(code);
+      textRow.push([
+        `<b>Task:</b> ${record.task_id}`,
+        `<b>Feature:</b> ${attr}`,
+        `<b>Value:</b> ${displayValue(v)}`,
+        `<b>${state.sortBy}:</b> ${formatMetric(record[state.sortBy])}`,
+        `<b>Family:</b> ${displayValue(record.metaheuristic_family)}`,
+        `<b>LLM:</b> ${displayValue(record.llm_family)}`,
+        `<b>Context:</b> ${displayValue(record.context)}`,
+        `<b>Rationale:</b> ${record.short_rationale ? String(record.short_rationale) : 'N/A'}`
+      ].join('<br>'));
+
+      customRow.push({
+        task_id: record.task_id,
+        feature: attr,
+        value: displayValue(v),
+        Mean: record.Mean,
+        Min: record.Min,
+        Max: record.Max,
+        Median: record.Median,
+        STD: record.STD,
+        metaheuristic_family: record.metaheuristic_family,
+        llm_family: record.llm_family,
+        context: record.context,
+        solution_dir: record.solution_dir,
+        short_rationale: record.short_rationale || ''
+      });
+    });
+
+    z.push(zRow);
+    text.push(textRow);
+    customdata.push(customRow);
+  });
+
+  const colorscale = [];
+  const maxCode = Math.max(1, nextCode - 1);
+
+  for (let i = 0; i < nextCode; i++) {
+    const t = maxCode === 0 ? 0 : i / maxCode;
+    const color = cellColorMap.get(i);
+    colorscale.push([t, color]);
+    colorscale.push([t, color]);
+  }
+
+  const legendTrace = {
+    type: 'scatter',
+    mode: 'markers',
+    x: visibleAttrs,
+    y: visibleAttrs.map(() => -0.6),   // a little above the first heatmap row
+    text: visibleAttrs.map(attributeLegendText),
+    hovertemplate: '%{text}<extra></extra>',
+    marker: {
+      size: 28,
+      color: 'rgba(0,0,0,0)'
+    },
+    showlegend: false
+  };
+
+  return {
+    data: [
+      {
+        type: 'heatmap',
+        x: visibleAttrs,
+        y: sortedRecords.map((_, i) => i + 1),
+        z,
+        text,
+        customdata,
+        hovertemplate: '%{text}<extra></extra>',
+        colorscale,
+        showscale: false,
+        xgap: 0,
+        ygap: 0
+      },
+      legendTrace
+    ],
+    layout: {
+      paper_bgcolor: '#0f172a',
+      plot_bgcolor: '#0f172a',
+      font: {color: '#e5e7eb'},
+      margin: {l: 90, r: 20, t: 50, b: 120},
+      xaxis: {
+        title: 'Visible attributes',
+        type: 'category',
+        tickangle: -35,
+        automargin: true,
+        gridcolor: '#334155',
+        zerolinecolor: '#334155'
+      },
+      yaxis: {
+        title: `Tasks sorted by ${state.sortBy} (${state.sortDirection})`,
+        autorange: 'reversed',
+        automargin: true,
+        range: [-1, sortedRecords.length + 0.5]
+      },
+      hoverlabel: {align: 'left'},
+      dragmode: 'pan'
+    },
+    config: {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    }
+  };
+}
+
+  function updateStats(totalCount, filteredCount, visibleAttrsCount) {
+    const stats = [
+      ['Total tasks', totalCount],
+      ['Visible tasks', filteredCount],
+      ['Visible attrs', visibleAttrsCount],
+      ['Cells', filteredCount * visibleAttrsCount]
+    ];
+    els.stats.innerHTML = '';
+    stats.forEach(([k, v]) => {
+      const div = document.createElement('div');
+      div.className = 'stat';
+      div.innerHTML = `<span class="k">${k}</span><span class="v">${v}</span>`;
+      els.stats.appendChild(div);
+    });
+  }
+
+  function render() {
+  let filtered = records;
+
+  // ---------------------------
+  // 1. APPLY FILTERS
+  // ---------------------------
+  for (const col in state.filters) {
+    filtered = filtered.filter(r =>
+      state.filters[col].has(valueKey(r[col]))
+    );
+  }
+
+  // ---------------------------
+  // 2. TEXT SEARCH
+  // ---------------------------
+  if (state.searchText) {
+    const q = state.searchText.toLowerCase();
+    filtered = filtered.filter(r =>
+      r._search && r._search.toLowerCase().includes(q)
+    );
+  }
+
+  // ---------------------------
+  // 3. (OPTIONAL) SORT TASKS
+  // ---------------------------
+  if (state.sortBy) {
+    const dir = state.sortDirection === "asc" ? 1 : -1;
+
+    filtered = filtered.slice().sort((a, b) => {
+      const av = a[state.sortBy];
+      const bv = b[state.sortBy];
+
+      if (av == null) return 1;
+      if (bv == null) return -1;
+
+      return (av - bv) * dir;
+    });
+  }
+
+  // ---------------------------
+  // 4. BUILD HEATMAP
+  // ---------------------------
+  const fig = buildHeatmap(filtered);
+
+  // ---------------------------
+  // 5. RENDER PLOT
+  // ---------------------------
+  Plotly.react(els.plot, fig.data, fig.layout, {
+    responsive: true
+  });
+
+  // ---------------------------
+  // 6. UPDATE STATS (sidebar)
+  // ---------------------------
+  const total = records.length;
+  const shown = filtered.length;
+
+  els.stats.innerHTML = `
+    <div class="stat">
+      <span class="k">Records</span>
+      <span class="v">${shown}</span>
+    </div>
+    <div class="stat">
+      <span class="k">Total</span>
+      <span class="v">${total}</span>
+    </div>
+  `;
+
+  // ---------------------------
+  // 7. UPDATE TITLE
+  // ---------------------------
+  const uniqueTasks = new Set(filtered.map(r => r.task_id)).size;
+  const uniqueIterations = new Set(filtered.map(r => r.actual_iteration)).size;
+
+  els.titleSummary.textContent =
+    `${uniqueTasks} tasks × ${uniqueIterations} iterations (${shown} records)`;
+}
+
+
+  els.textSearch.addEventListener('input', (e) => {
+    state.searchText = e.target.value.trim().toLowerCase();
+    render();
+  });
+  els.sortBy.addEventListener('change', (e) => {
+    state.sortBy = e.target.value;
+    render();
+  });
+  els.sortDirection.addEventListener('change', (e) => {
+    state.sortDirection = e.target.value;
+    render();
+  });
+  els.resetBtn.addEventListener('click', () => {
+    state.searchText = '';
+    state.sortBy = metadata.default_sort_column;
+    state.sortDirection = metadata.default_sort_direction;
+    state.visibleAttributes = new Set(metadata.default_visible_attributes);
+    for (const col of filterableColumns) {
+      state.filters[col] = new Set(metadata.attribute_values[col].map(v => valueKey(v)));
+    }
+    els.textSearch.value = '';
+    els.sortBy.value = state.sortBy;
+    els.sortDirection.value = state.sortDirection;
+    buildVisibleAttributesUI();
+    buildFiltersUI();
+    render();
+  });
+  els.selectAllVisibleBtn.addEventListener('click', () => {
+    state.visibleAttributes = new Set(attributeColumns);
+    buildVisibleAttributesUI();
+    render();
+  });
+  els.clearVisibleBtn.addEventListener('click', () => {
+    state.visibleAttributes = new Set();
+    buildVisibleAttributesUI();
+    render();
+  });
+
+  function attachPlotEvents() {
+    if (els.plot.__plotlyClickAttached) return;
+    if (typeof els.plot.on !== 'function') return;
+    els.plot.on('plotly_click', (eventData) => {
+      const point = eventData.points && eventData.points[0];
+      if (!point || !point.customdata) return;
+      const d = point.customdata;
+      const msg = [
+        `Task ID: ${d.task_id}`,
+        `Feature: ${d.feature}`,
+        `Value: ${d.value}`,
+        `Mean: ${formatMetric(d.Mean)}`,
+        `Min: ${formatMetric(d.Min)}`,
+        `Max: ${formatMetric(d.Max)}`,
+        `Median: ${formatMetric(d.Median)}`,
+        `STD: ${formatMetric(d.STD)}`,
+        `Family: ${d.metaheuristic_family}`,
+        `LLM: ${d.llm_family}`,
+        `Context: ${d.context}`,
+        `Solution dir: ${d.solution_dir}`,
+        `Rationale: ${d.short_rationale || 'N/A'}`
+      ].join('\n');
+      alert(msg);
+    });
+    els.plot.__plotlyClickAttached = true;
+  }
+
+  buildVisibleAttributesUI();
+  buildFiltersUI();
+  render();
+  attachPlotEvents();
+})();
+</script>
+</body>
+</html>

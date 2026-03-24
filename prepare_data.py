@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-CSV_PATH = Path("solutions_summary_enriched.csv")
+CSV_PATH = Path(r"Z:\PaperContext\tasks_sorted\solutions_summary_enriched_with_best.csv")
 OUTPUT_DIR = Path("plotly_task_feature_map")
 
 ATTRIBUTE_COLS = [
@@ -24,9 +24,11 @@ ATTRIBUTE_COLS = [
     "stochastic",
     "llm_family",
     "context",
+    "best_mean",
+    "best_min",
 ]
 
-SORT_COLS = ["Mean", "Min", "Max", "Median", "STD"]
+SORT_COLS = ["Mean", "Min", "Max", "Median", "STD", "Mean_rescaled", "Min_rescaled"]
 TEXT_COLS = ["task_id", "solution_dir", "py_file", "short_rationale", "metaheuristic_family", "llm_family", "context"]
 
 
@@ -59,7 +61,7 @@ def build_data_json(csv_path: Path = CSV_PATH, output_dir: Path = OUTPUT_DIR) ->
         "sort_columns": SORT_COLS,
         "default_visible_attributes": ATTRIBUTE_COLS,
         "default_sort_column": "Mean",
-        "default_sort_direction": "asc",
+        "default_sort_direction": "desc",
         "text_search_columns": TEXT_COLS,
         "attribute_values": {},
     }
