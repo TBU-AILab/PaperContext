@@ -18,6 +18,18 @@
       --red: #ef4444;
     }
 
+    body.light-theme {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-2: #f1f5f9;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --border: #cbd5e1;
+      --green: #16a34a;
+      --red: #dc2626;
+    }
+
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
@@ -121,6 +133,11 @@
     }
 
     button:hover { border-color: var(--accent); }
+
+    .theme-toggle {
+      margin-left: auto;
+      white-space: nowrap;
+    }
 
     .checkbox-list, .choice-list {
       max-height: 220px;
@@ -236,6 +253,62 @@
       margin-bottom: 6px;
     }
 
+    .hist-card {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .hist-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .hist-bars {
+      display: grid;
+      gap: 6px;
+    }
+
+    .hist-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 110px 36px;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .hist-label {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hist-bar-wrap {
+      position: relative;
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(148, 163, 184, 0.18);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .hist-bar {
+      height: 100%;
+      border-radius: 999px;
+      min-width: 2px;
+    }
+
+    .hist-count {
+      color: var(--muted);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+
     #plot {
       width: 100%;
       height: calc(100vh - 140px);
@@ -307,15 +380,16 @@
       <div class="topbar">
         <div class="inline-controls">
           <div><strong id="titleSummary">Loading...</strong></div>
+          <button id="themeToggle" type="button" class="theme-toggle">Light mode</button>
         </div>
         <div class="small-note">Click a square to inspect the task. Double-click the plot to reset zoom.</div>
       </div>
       <div class="plot-wrap">
         <div id="plot"></div>
         <div class="sticky-legend-wrap">
-          <div class="small-note">Attribute legend</div>
+          <div class="small-note">Attribute histogram</div>
           <div id="attributeLegendPanel" class="legend-panel">
-            <div class="small-note">Hover a cell or click a cell to see the color meaning for that attribute.</div>
+            <div class="small-note">Hover a cell or click a cell to see the histogram for that attribute. The color legend is embedded directly in the Plotly figure and will be part of exports.</div>
           </div>
         </div>
       </div>
@@ -369,10 +443,16 @@
     resetBtn: document.getElementById('resetBtn'),
     selectAllVisibleBtn: document.getElementById('selectAllVisibleBtn'),
     clearVisibleBtn: document.getElementById('clearVisibleBtn'),
-    attributeLegendPanel: document.getElementById('attributeLegendPanel')
+    attributeLegendPanel: document.getElementById('attributeLegendPanel'),
+    themeToggle: document.getElementById('themeToggle')
   };
 
   let currentColorMaps = {};
+  let currentLegendRecords = [];
+  let activeLegendAttr = null;
+  let lastEmbeddedLegendKey = '__init__';
+  let legendRelayoutInFlight = false;
+  let isDark = !document.body.classList.contains('light-theme');
 
   sortColumns.forEach(col => {
     const opt = document.createElement('option');
@@ -382,6 +462,179 @@
     els.sortBy.appendChild(opt);
   });
   els.sortDirection.value = state.sortDirection;
+
+
+  function cssVar(name, fallback) {
+    const value = getComputedStyle(document.body).getPropertyValue(name).trim()
+      || getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
+  function currentThemeColors() {
+    return {
+      paper: cssVar('--bg', '#0f172a'),
+      plot: cssVar('--bg', '#0f172a'),
+      text: cssVar('--text', '#e5e7eb'),
+      muted: cssVar('--muted', '#9ca3af'),
+      border: cssVar('--border', '#374151'),
+      panel: cssVar('--panel-2', '#1f2937'),
+      grid: cssVar('--border', '#374151')
+    };
+  }
+
+  function legendEntriesForAttribute(attr, colorMaps) {
+    const cfg = colorMaps[attr];
+    if (!cfg) return [];
+
+    const booleanLegendLabels = {
+      local_search: ['enabled', 'disabled'],
+      adaptation: ['enabled', 'disabled'],
+      restart: ['enabled', 'disabled'],
+      surrogate: ['enabled', 'disabled'],
+      elitism: ['enabled', 'disabled'],
+      archive: ['enabled', 'disabled'],
+      niching_or_diversity: ['enabled', 'disabled'],
+      hybridized: ['yes', 'no'],
+      population_based: ['yes', 'no'],
+      stochastic: ['stochastic', 'deterministic'],
+      best_mean: ['best', 'not best'],
+      best_min: ['best', 'not best']
+    };
+
+    if (cfg.type === 'boolean') {
+      const [trueLabel, falseLabel] = booleanLegendLabels[attr] || ['true', 'false'];
+      return [
+        { color: BOOL_TRUE, label: trueLabel },
+        { color: BOOL_FALSE, label: falseLabel },
+        { color: MISSING, label: 'missing' }
+      ];
+    }
+
+    return Object.entries(cfg.map || {}).map(([key, color]) => ({
+      color,
+      label: displayValue(decodeValueKey(key))
+    }));
+  }
+
+  function wrapLegendTitle(attr, maxLineLen = 18) {
+    const parts = String(attr).split('_');
+    const lines = [];
+    let current = '';
+    parts.forEach(part => {
+      const candidate = current ? `${current}_${part}` : part;
+      if (candidate.length <= maxLineLen || !current) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        current = part;
+      }
+    });
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  function buildEmbeddedLegend(attr, colorMaps) {
+    const theme = currentThemeColors();
+    const panelGap = 0.022;
+    const panelX1 = 0.975;
+
+    if (!attr) {
+      const panelWidth = 0.13;
+      const panelX0 = panelX1 - panelWidth;
+      const xDomainMax = panelX0 - panelGap;
+      return {
+        annotations: [{
+          xref: 'paper', yref: 'paper', x: panelX0 + 0.012, y: 0.90,
+          xanchor: 'left', yanchor: 'top', showarrow: false, align: 'left',
+          font: { size: 11, color: theme.muted },
+          text: 'Hover a cell<br>to show legend'
+        }],
+        shapes: [{
+          type: 'rect', xref: 'paper', yref: 'paper',
+          x0: panelX0, x1: panelX1, y0: 0.72, y1: 0.95,
+          line: { color: theme.border, width: 1 }, fillcolor: theme.panel, layer: 'above'
+        }],
+        marginRight: 24,
+        xDomainMax,
+        legendKey: '__empty__'
+      };
+    }
+
+    const entries = legendEntriesForAttribute(attr, colorMaps);
+    const titleLines = wrapLegendTitle(attr, 18);
+    const longestTitleLine = Math.max(...titleLines.map(line => line.length), 10);
+    const longestLabel = Math.max(...entries.map(e => String(e.label).length), 7);
+    const longest = Math.max(longestTitleLine, longestLabel);
+    const panelWidth = Math.min(0.18, Math.max(0.11, 0.07 + longest * 0.0030));
+    const panelX0 = panelX1 - panelWidth;
+    const xDomainMax = panelX0 - panelGap;
+    const marginRight = 24;
+    const swatchX0 = panelX0 + 0.012;
+    const swatchX1 = swatchX0 + 0.0105;
+    const textX = swatchX1 + 0.008;
+    const topY = 0.95;
+    const bottomPadding = 0.028;
+    const titleLineHeight = 0.036;
+    const titleTopY = topY - 0.02;
+    const titleBlockHeight = titleLines.length * titleLineHeight;
+    const firstRowY = titleTopY - titleBlockHeight - 0.022;
+    const minDy = 0.024;
+    const maxDy = 0.046;
+    const availableHeight = Math.max(0.16, firstRowY - (0.10 + bottomPadding));
+    const rowCount = Math.max(entries.length, 1);
+    const dy = Math.max(minDy, Math.min(maxDy, availableHeight / rowCount));
+    const contentBottom = firstRowY - (rowCount - 1) * dy - 0.014;
+    const panelY0 = Math.max(0.08, contentBottom - bottomPadding);
+    const rowHalf = Math.max(0.0045, Math.min(0.0095, dy * 0.28));
+    const fontSize = Math.max(8, Math.min(11, Math.floor(7 + dy * 68)));
+    const annotations = [];
+    const shapes = [{
+      type: 'rect', xref: 'paper', yref: 'paper',
+      x0: panelX0, x1: panelX1, y0: panelY0, y1: topY,
+      line: { color: theme.border, width: 1 }, fillcolor: theme.panel, layer: 'above'
+    }];
+
+    annotations.push({
+      xref: 'paper', yref: 'paper', x: swatchX0, y: titleTopY,
+      xanchor: 'left', yanchor: 'top', showarrow: false, align: 'left',
+      font: { size: 11, color: theme.text }, text: `<b>${titleLines.map(line => escapeHtml(line)).join('<br>')}</b>`
+    });
+
+    let y = firstRowY;
+    entries.forEach(entry => {
+      shapes.push({
+        type: 'rect', xref: 'paper', yref: 'paper',
+        x0: swatchX0, x1: swatchX1, y0: y - rowHalf, y1: y + rowHalf,
+        line: { color: theme.border, width: 1 }, fillcolor: entry.color, layer: 'above'
+      });
+      annotations.push({
+        xref: 'paper', yref: 'paper', x: textX, y,
+        xanchor: 'left', yanchor: 'middle', showarrow: false, align: 'left',
+        font: { size: fontSize, color: theme.text },
+        text: escapeHtml(String(entry.label))
+      });
+      y -= dy;
+    });
+
+    return {
+      annotations,
+      shapes,
+      marginRight,
+      xDomainMax,
+      legendKey: `${attr}__${entries.map(e => `${e.label}:${e.color}`).join('|')}`
+    };
+  }
+
+  function histogramOnlyHtml(attr, colorMaps, recordsForLegend) {
+    if (!attr) {
+      return '<div class="small-note">Hover a cell or click a cell to see the histogram for that attribute. The color legend is embedded directly in the Plotly figure and will be part of exports.</div>';
+    }
+    return `
+      <div class="legend-panel-title">${escapeHtml(attr)}</div>
+      <div class="legend-panel-subtitle">Filtered distribution. The color legend is embedded in the Plotly figure.</div>
+      ${histogramHtml(attr, recordsForLegend, colorMaps)}
+    `;
+  }
 
   function valueKey(v) {
     if (v === null || v === undefined) return '__NULL__';
@@ -572,7 +825,131 @@
     return cfg.map[valueKey(value)] || MISSING;
   }
 
-  function attributeLegendHtml(attr, colorMaps) {
+
+  function buildValueHistogramData(recordsForLegend, attr) {
+    const values = (recordsForLegend || []).map(record => record[attr]);
+    const nonNullValues = values.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    const numericValues = nonNullValues
+      .map(v => Number(v))
+      .filter(v => !Number.isNaN(v) && Number.isFinite(v));
+
+    const allNumeric = nonNullValues.length > 0 && numericValues.length === nonNullValues.length;
+    const hasRealValuedData = allNumeric && numericValues.some(v => !Number.isInteger(v));
+
+    if (hasRealValuedData) {
+      const min = Math.min(...numericValues);
+      const max = Math.max(...numericValues);
+      const binCount = 10;
+
+      if (min === max) {
+        return [{
+          key: `bin_${min}_${max}`,
+          count: numericValues.length,
+          label: formatMetric(min),
+          colorValue: min,
+          isBinned: true
+        }];
+      }
+
+      const width = (max - min) / binCount;
+      const bins = Array.from({ length: binCount }, (_, i) => {
+        const start = min + i * width;
+        const end = i === binCount - 1 ? max : min + (i + 1) * width;
+        return { start, end, count: 0 };
+      });
+
+      numericValues.forEach(v => {
+        let idx = Math.floor((v - min) / width);
+        if (idx >= binCount) idx = binCount - 1;
+        if (idx < 0) idx = 0;
+        bins[idx].count += 1;
+      });
+
+      return bins
+        .filter(bin => bin.count > 0)
+        .map(bin => ({
+          key: `bin_${bin.start}_${bin.end}`,
+          count: bin.count,
+          label: `${formatMetric(bin.start)} – ${formatMetric(bin.end)}`,
+          colorValue: (bin.start + bin.end) / 2,
+          isBinned: true
+        }));
+    }
+
+    const counts = new Map();
+    values.forEach(v => {
+      const key = valueKey(v);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+
+    const entries = [...counts.entries()].map(([key, count]) => ({
+      key,
+      count,
+      value: key === '__NULL__' ? null : decodeValueKey(key),
+      label: displayValue(key === '__NULL__' ? null : decodeValueKey(key)),
+      colorValue: key === '__NULL__' ? null : decodeValueKey(key),
+      isBinned: false
+    }));
+
+    entries.sort((a, b) => {
+      const av = a.value;
+      const bv = b.value;
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      const an = Number(av);
+      const bn = Number(bv);
+      const aNum = !Number.isNaN(an) && String(av).trim() !== '';
+      const bNum = !Number.isNaN(bn) && String(bv).trim() !== '';
+      if (aNum && bNum) return an - bn;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    return entries;
+  }
+
+  function histogramHtml(attr, recordsForLegend, colorMaps) {
+    const entries = buildValueHistogramData(recordsForLegend || [], attr);
+    if (!entries.length) {
+      return `
+        <div class="hist-card">
+          <div class="hist-title">Filtered distribution</div>
+          <div class="legend-panel-empty">No values in current filtered selection.</div>
+        </div>
+      `;
+    }
+
+    const totalCount = entries.reduce((sum, entry) => sum + entry.count, 0) || 1;
+    const maxCount = Math.max(...entries.map(entry => entry.count), 1);
+    const rows = entries.map(entry => {
+      const color = colorForValue(attr, entry.colorValue, colorMaps);
+      const pct = (entry.count / maxCount) * 100;
+      const share = ((entry.count / totalCount) * 100).toFixed(1);
+      return `
+        <div class="hist-row" title="${escapeHtml(entry.label)}: ${entry.count} (${share}%)">
+          <div class="hist-label">${escapeHtml(entry.label)}</div>
+          <div class="hist-bar-wrap">
+            <div class="hist-bar" style="width:${pct}%; background:${color}"></div>
+          </div>
+          <div class="hist-count">${entry.count} (${share}%)</div>
+        </div>
+      `;
+    }).join('');
+
+    const subtitle = entries.some(entry => entry.isBinned)
+      ? 'Counts are recomputed only from the currently filtered records. Real-valued numeric data are grouped into 10 equal-width bins.'
+      : 'Counts are recomputed only from the currently filtered records.';
+
+    return `
+      <div class="hist-card">
+        <div class="hist-title">Filtered distribution</div>
+        <div class="legend-panel-subtitle">${subtitle}</div>
+        <div class="hist-bars">${rows}</div>
+      </div>
+    `;
+  }
+
+  function attributeLegendHtml(attr, colorMaps, recordsForLegend) {
     const cfg = colorMaps[attr];
     if (!cfg) {
       return '<div class="legend-panel-empty">No legend available for this attribute.</div>';
@@ -634,16 +1011,31 @@
       <div class="legend-panel-title">${escapeHtml(attr)}</div>
       <div class="legend-panel-subtitle">${escapeHtml(subtitle)}</div>
       ${rows}
+      ${histogramHtml(attr, recordsForLegend, colorMaps)}
     `;
   }
 
   function updateAttributeLegendPanel(attr) {
-    if (!els.attributeLegendPanel) return;
-    if (!attr) {
-      els.attributeLegendPanel.innerHTML = '<div class="small-note">Hover a cell or click a cell to see the color meaning for that attribute.</div>';
-      return;
+    activeLegendAttr = attr || null;
+    if (els.attributeLegendPanel) {
+      els.attributeLegendPanel.innerHTML = histogramOnlyHtml(activeLegendAttr, currentColorMaps, currentLegendRecords);
     }
-    els.attributeLegendPanel.innerHTML = attributeLegendHtml(attr, currentColorMaps);
+    const embedded = buildEmbeddedLegend(activeLegendAttr, currentColorMaps);
+    if (!els.plot || !els.plot.data || legendRelayoutInFlight) return;
+    if (embedded.legendKey === lastEmbeddedLegendKey) return;
+
+    legendRelayoutInFlight = true;
+    lastEmbeddedLegendKey = embedded.legendKey;
+    Plotly.relayout(els.plot, {
+      annotations: embedded.annotations,
+      shapes: embedded.shapes,
+      margin: { l: 90, r: embedded.marginRight, t: 30, b: 120 },
+      'xaxis.domain': [0, embedded.xDomainMax]
+    }).catch(() => {
+      lastEmbeddedLegendKey = '__error__';
+    }).finally(() => {
+      legendRelayoutInFlight = false;
+    });
   }
 
   function buildPlotData(sortedRecords, visibleAttrs) {
@@ -720,6 +1112,10 @@
       colorscale.push([t, color]);
     }
 
+        const embeddedLegend = buildEmbeddedLegend(activeLegendAttr, colorMaps);
+    const theme = currentThemeColors();
+    const xDomainMax = embeddedLegend.xDomainMax;
+
     return {
       data: [{
         type: 'heatmap',
@@ -735,17 +1131,18 @@
         ygap: 0
       }],
       layout: {
-        paper_bgcolor: '#0f172a',
-        plot_bgcolor: '#0f172a',
-        font: { color: '#e5e7eb' },
-        margin: { l: 90, r: 20, t: 30, b: 120 },
+        paper_bgcolor: theme.paper,
+        plot_bgcolor: theme.plot,
+        font: { color: theme.text },
+        margin: { l: 90, r: embeddedLegend.marginRight, t: 30, b: 120 },
         xaxis: {
           title: 'Visible attributes',
           type: 'category',
           tickangle: -35,
           automargin: true,
-          gridcolor: '#334155',
-          zerolinecolor: '#334155'
+          domain: [0, xDomainMax],
+          gridcolor: theme.grid,
+          zerolinecolor: theme.grid
         },
         yaxis: {
           title: `Tasks sorted by ${state.sortBy} (${state.sortDirection})`,
@@ -753,7 +1150,10 @@
           automargin: true
         },
         hoverlabel: { align: 'left' },
-        dragmode: 'pan'
+        dragmode: 'pan',
+        annotations: embeddedLegend.annotations,
+        shapes: embeddedLegend.shapes,
+        meta: { legendKey: embeddedLegend.legendKey }
       },
       config: {
         responsive: true,
@@ -780,10 +1180,12 @@
   }
 
   function renderEmpty(message) {
+    lastEmbeddedLegendKey = '__empty__';
+    const theme = currentThemeColors();
     Plotly.react(els.plot, [], {
-      paper_bgcolor: '#0f172a',
-      plot_bgcolor: '#0f172a',
-      font: { color: '#e5e7eb' },
+      paper_bgcolor: theme.paper,
+      plot_bgcolor: theme.plot,
+      font: { color: theme.text },
       annotations: [{
         text: message,
         xref: 'paper',
@@ -799,6 +1201,7 @@
     const visibleAttrs = attributeColumns.filter(a => state.visibleAttributes.has(a));
     const filtered = records.filter(matchesFilters);
     const sorted = sortRecords(filtered);
+    currentLegendRecords = sorted.slice();
 
     updateStats(records.length, sorted.length, visibleAttrs.length);
     els.titleSummary.textContent = `${sorted.length} tasks × ${visibleAttrs.length} attributes`;
@@ -814,6 +1217,7 @@
     }
 
     const fig = buildPlotData(sorted, visibleAttrs);
+    lastEmbeddedLegendKey = (fig.layout.meta && fig.layout.meta.legendKey) || '__render__';
     Plotly.react(els.plot, fig.data, fig.layout, fig.config).then(() => attachPlotEvents());
   }
 
@@ -825,7 +1229,8 @@
       const pt = ev.points && ev.points[0];
       if (!pt) return;
       const d = pt.customdata;
-      if (!d || !d.feature) return;
+      if (!d || !d.feature || legendRelayoutInFlight) return;
+      if (d.feature === activeLegendAttr) return;
       updateAttributeLegendPanel(d.feature);
     });
 
@@ -867,7 +1272,7 @@
     els.textSearch.value = '';
     els.sortBy.value = state.sortBy;
     els.sortDirection.value = state.sortDirection;
-    buildVisibleAttributesUI();
+  buildVisibleAttributesUI();
     buildFiltersUI();
     updateAttributeLegendPanel(null);
     render();
@@ -884,6 +1289,41 @@
     buildVisibleAttributesUI();
     render();
   });
+
+  function applyTheme(nextDark) {
+    isDark = nextDark;
+    document.body.classList.toggle('light-theme', !isDark);
+    if (els.themeToggle) els.themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+
+    const theme = currentThemeColors();
+    const embedded = buildEmbeddedLegend(activeLegendAttr, currentColorMaps || {});
+    const gridColor = isDark ? '#334155' : '#e5e7eb';
+    const axisUpdates = {
+      paper_bgcolor: theme.paper,
+      plot_bgcolor: theme.plot,
+      'font.color': theme.text,
+      'xaxis.gridcolor': gridColor,
+      'xaxis.zerolinecolor': gridColor,
+      annotations: embedded.annotations || [],
+      shapes: embedded.shapes || []
+    };
+
+    if (typeof Plotly !== 'undefined' && els.plot && els.plot.data) {
+      Plotly.relayout(els.plot, axisUpdates).catch(() => {
+        lastEmbeddedLegendKey = '__theme_fallback__' + (isDark ? 'dark' : 'light');
+        render();
+      });
+      lastEmbeddedLegendKey = embedded.legendKey || ('__theme__' + (isDark ? 'dark' : 'light'));
+    } else {
+      lastEmbeddedLegendKey = '__theme__' + (isDark ? 'dark' : 'light');
+      render();
+    }
+  }
+
+  if (els.themeToggle) {
+    els.themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+    els.themeToggle.addEventListener('click', () => applyTheme(!isDark));
+  }
 
   buildVisibleAttributesUI();
   buildFiltersUI();

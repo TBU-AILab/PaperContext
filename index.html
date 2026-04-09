@@ -25,7 +25,8 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(2, 280px);
+      grid-template-columns: repeat(auto-fit, 280px);
+      justify-content: center;
       gap: 20px;
     }
 
@@ -52,11 +53,46 @@
       font-size: 13px;
       color: #9ca3af;
     }
+    .topbar {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+    }
+
+    .topbar a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-size: 14px;
+      border: 1px solid #374151;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: #111827;
+      transition: all 0.2s ease;
+    }
+
+    .topbar a:hover {
+      border-color: #60a5fa;
+      background: #1f2937;
+    }
+    .repo-link {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
+
+
+
   <div class="container">
     <h1>Visualization Hub</h1>
+
+    <div class="repo-link">
+      <a href="https://github.com/TBU-AILab/PaperContext" target="_blank">
+        🔗 Project repository (PaperContext)
+      </a>
+    </div>
 
     <div class="grid">
       <div class="card" onclick="location.href='feature.html'">
@@ -74,6 +110,14 @@
           Metaheuristic family overview
         </div>
       </div>
+
+    <div class="card" onclick="location.href='images.html'">
+      <div class="title">Image Gallery</div>
+      <div class="desc">
+        Static outputs<br>
+        Generated visualizations
+      </div>
+    </div>
     </div>
   </div>
 </body>
